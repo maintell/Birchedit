@@ -28,20 +28,22 @@ Its settings are in `.config/nextest.toml`. Debug builds optimize the dependenci
 GPUI, and the test window turns motion off (`set_reduce_motion`), so no test waits for a dialog
 to slide in.
 
-CI runs the same commands with warnings treated as errors, in four workflows that start together
-on every push to `main` and every pull request, each job of them side by side:
+CI runs the same commands with warnings treated as errors, in one workflow
+(`.github/workflows/ci.yml`) whose jobs run side by side, one run per event ([ADR 0069](docs/adr/0069-one-ci-workflow.md)):
 
-- **Linux** (`.github/workflows/linux.yml`): Clippy, the tests and the end-to-end tests on
-  Ubuntu, and the tests in Debian trixie and bookworm containers, against Debian's own libraries;
-- **Windows** (`windows.yml`): Clippy and the tests on x64 and ARM64, the end-to-end tests on x64;
-- **macOS** (`macos.yml`): Clippy, the tests and the end-to-end tests;
-- **Checks** (`checks.yml`): formatting,
-  [`cargo-deny`](https://github.com/EmbarkStudios/cargo-deny) for licenses and advisories,
-  coverage and fuzzing.
+- **a pull request**: formatting, [`cargo-deny`](https://github.com/EmbarkStudios/cargo-deny) for
+  licenses and advisories, coverage and fuzzing; Clippy and the tests on Ubuntu, in Debian trixie
+  and bookworm containers, on Windows x64 and ARM64 and on macOS; and the end-to-end tests of
+  each;
+- **a tag `v*`**: the release (ADR 0009); a tag `plantuml-*` the PlantUML packages (ADR 0045);
+- **a published release**: the signed update manifest gains it (ADR 0068);
+- **every night**: a nightly build when the branch of the next version changed, the timing checks
+  and mutation testing, in the same run.
 
-The jobs' names (`test (ubuntu-latest)`, `e2e (windows-latest)`, ...) are the checks the `main`
-branch's ruleset requires: a job renamed without the ruleset leaves a pull request waiting for a
-check that never comes.
+A push to `main` starts nothing by itself: a pull request's run is the gate. The jobs' names
+(`test (ubuntu-latest)`, `e2e (windows-latest)`, ...) are the checks a branch ruleset requires,
+now under the workflow's name (`CI / test (ubuntu-latest)`): a job renamed without the ruleset
+leaves a pull request waiting for a check that never comes.
 
 Clippy runs in a job of its own beside the tests, and CI builds keep only line numbers as debug
 information (`CARGO_PROFILE_DEV_DEBUG=line-tables-only`), so test binaries link and cache faster.

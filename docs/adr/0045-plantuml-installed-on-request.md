@@ -28,7 +28,7 @@ neither.
   with only the modules PlantUML needs. About 50 MB per platform, for Windows x64 and ARM64,
   Linux x64, and macOS on Apple Silicon and Intel. Diagrams use PlantUML's own layout
   (`-Playout=smetana`), so that Graphviz is not needed either.
-- **Built by Birchpad's workflow, pinned in Birchpad.** `.github/workflows/plantuml.yml` builds
+- **Built by Birchpad's workflow, pinned in Birchpad.** the PlantUML jobs of `.github/workflows/ci.yml` builds
   the packages when a tag `plantuml-<PlantUML's version>-<revision>` is pushed, checks that each
   draws, attests their provenance, and publishes them as that tag's pre-release. Birchpad holds
   each package's URL, size and SHA-256 (`birchpad_update::component::PLANTUML`); a package that

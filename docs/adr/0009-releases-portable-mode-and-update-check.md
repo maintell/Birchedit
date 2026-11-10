@@ -3,7 +3,7 @@
 - Status: accepted; the update check is superseded by
   [ADR 0020](0020-signed-updates-and-nightly-builds.md) (a signed manifest instead of GitHub's
   release list, background checks and automatic updates), and the build jobs moved to
-  `build.yml`, shared with nightly builds
+  `build.yml`, shared with nightly builds, which [ADR 0069](0069-one-ci-workflow.md) then made jobs of `ci.yml`
 - Date: 2026-10-01
 
 ## Context
@@ -16,7 +16,7 @@ versions, without breaking the zero-network guarantee.
 
 ## Decision
 
-**Release workflow.** Pushing a tag `v<version>` runs `.github/workflows/release.yml`. The tag
+**Release workflow.** Pushing a tag `v<version>` runs the release jobs of `.github/workflows/ci.yml` ([ADR 0069](0069-one-ci-workflow.md)). The tag
 must equal the workspace version, the application's; library crates keep versions of their own,
 raised only in a release that changes them, which the workflow checks first
 (`birchpad-release crate-versions`, CONTRIBUTING.md, Versions). The channel comes from the version: no pre-release part is

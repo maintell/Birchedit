@@ -18,6 +18,13 @@ version's release notes from its section here.
   has published no release and built no trusted key yet, so a check could only refuse the
   manifest it read and report an error. Turned on, a check downloads the manifest and sends
   nothing; `updates.url` still names a mirror, read instead when an administrator sets one.
+- CI is one workflow, `.github/workflows/ci.yml`, with one run per event
+  ([ADR 0069](docs/adr/0069-one-ci-workflow.md)): a pull request runs the checks and the tests of
+  every platform, a `v*` tag builds the release, a published release signs the update manifest, a
+  `plantuml-*` tag builds the preview's packages, and the night does the nightly build, the
+  timing checks and mutation testing in one run. A push to `main` starts nothing by itself, and a
+  release is created only when every job before it succeeded and its packages exist: the eleven
+  workflow files became one, with the jobs they had.
 
 ### Removed
 

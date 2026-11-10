@@ -14,8 +14,9 @@ desktops are welcome but not required.
 
 ## Before tagging
 
-- [ ] CI is green on `main`, the non-blocking jobs included (Windows on ARM, the end-to-end
-      tests on Linux and macOS, fuzzing); a red one is understood and written down
+- [ ] CI is green on the pull request being released, the non-blocking jobs included (Windows
+      on ARM, the end-to-end tests on Linux and macOS, fuzzing); a red one is understood and
+      written down
 - [ ] `CHANGELOG.md`: the `[Unreleased]` section becomes the version's, with the date; the
       workspace version in `Cargo.toml` matches the tag
 - [ ] `cargo run -p birchpad-release-tool -- crate-versions` passes: the crates that changed

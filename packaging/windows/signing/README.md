@@ -33,7 +33,7 @@ In [app.signpath.io](https://app.signpath.io):
    yourself as approver.
 6. A CI user with the *Submitter* role in that policy, and an API token for it.
 
-The slugs are those of `.github/workflows/build.yml` (`SIGNPATH_PROJECT`, `SIGNPATH_POLICY`, and
+The slugs are those of the build jobs of `.github/workflows/ci.yml` (`SIGNPATH_PROJECT`, `SIGNPATH_POLICY`, and
 the artifact configuration slugs); change them there if SignPath gave others.
 
 ## 3. Set up GitHub

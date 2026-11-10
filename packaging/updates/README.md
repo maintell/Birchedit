@@ -53,13 +53,13 @@ cargo run --release -p birchpad-release-tool -- keygen | gh secret set BIRCHPAD_
 gh variable set BIRCHPAD_TRUSTED_KEYS --body "<the public key>"
 ```
 
-## 2. What the workflows do
+## 2. What the workflow does
 
-| Workflow | When | What |
+| Jobs of `ci.yml` | When | What |
 |---|---|---|
-| `nightly.yml` | 03:00 Moscow time (00:00 UTC) daily, or by hand (on `main`) | if the branch of the next version changed (the lowest `v<major>.<minor>.<patch>` branch without a release tag): builds `v<version>-nightly.<date>.<run>`, publishes it as a pre-release with portable ZIPs, the Windows installer (`…-setup.exe`) and update packages (`…-full.nupkg`), adds it to the manifest, deletes nightly releases beyond the ten newest; otherwise signs the manifest again when it is a week old |
-| `release.yml` | a `v*` tag is pushed | builds the same for a stable or beta version, plus the MSI, as a **draft** release |
-| `update-manifest.yml` | a maintainer publishes a draft release; called by the nightly workflow; or by hand | adds the release to `birchpad-updates.json`, signs it and uploads it to the `updates` release |
+| `prepare`, `build`, `publish-nightly`, `manifest` | 00:00 UTC daily, or by hand (`task: nightly`, on `main`) | if the branch of the next version changed (the lowest `v<major>.<minor>.<patch>` branch without a release tag): builds `v<version>-nightly.<date>.<run>`, publishes it as a pre-release with portable ZIPs, the Windows installer (`…-setup.exe`) and update packages (`…-full.nupkg`), adds it to the manifest, deletes nightly releases beyond the ten newest; otherwise signs the manifest again when it is a week old |
+| `prepare`, `build`, `publish` | a `v*` tag is pushed | builds the same for a stable or beta version, plus the MSI, as a **draft** release |
+| `manifest` | a maintainer publishes a draft release; after a nightly; or by hand (`task: manifest`) | adds the release to `birchpad-updates.json`, signs it and uploads it to the `updates` release |
 
 The manifest lives at
 `https://github.com/maintell/Birchedit/releases/download/updates/birchpad-updates.json`. It
@@ -78,7 +78,7 @@ manifest is only signed again.
 
 ## 3. By hand
 
-Run **Update manifest** from the Actions tab:
+Run the workflow (**CI**) from the Actions tab with `task: manifest`:
 
 - with a tag (`v0.2.0`): add that release again, for example after fixing a failed run;
 - with *remove* (`0.2.0`): withdraw a broken release. Installations that already have it keep

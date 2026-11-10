@@ -55,7 +55,7 @@ When the fork publishes releases signed with its own key, an ADR may raise the d
 ### What still names the project this came from
 
 - **The PlantUML bundles** (`plantuml-1.2026.9-3`): 60 MB packages of PlantUML, its EPL build
-  with ELK, and a `jlink` Java runtime, built by `.github/workflows/plantuml.yml`. They are
+  with ELK, and a `jlink` Java runtime, built by the PlantUML jobs of `.github/workflows/ci.yml`. They are
   served from that release of `SecurityTrip/Birchpad` until this repository builds its own, and
   the SHA-256 of each package is compiled in (`crates/update/src/component.rs`): a rebuilt
   package is a new release and new hashes, not a new URL alone.

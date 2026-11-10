@@ -39,7 +39,7 @@ point about the EPL 1.0 of Graphviz was a small one, and does not stand against 
 
 ## Decision
 
-- **The EPL build.** The PlantUML package Birchpad installs (`.github/workflows/plantuml.yml`)
+- **The EPL build.** The PlantUML package Birchpad installs (the PlantUML jobs of `.github/workflows/ci.yml`)
   is PlantUML's EPL build, with `lib/org.eclipse.xtext.xbase.lib.jar` from Maven Central, both
   checked against their SHA-256, and the Java runtime made for both; its `README.txt` gives
   their licenses and where their sources are. It is revision 3 of the package,

@@ -1,0 +1,1383 @@
+name: CI
+
+# Everything this repository checks, builds and publishes, in one workflow: one run per event,
+# one place to look. The jobs are the same ones that used to be seven workflows, with a `prepare`
+# job in front that says what the run is.
+#
+#   pull request              checks and the tests on Linux, Windows and macOS
+#   tag `v*`                  the release: artifacts, a draft release for review
+#   tag `plantuml-*`          the PlantUML packages of the preview
+#   release published         the signed update manifest gains the release (maintainer's review
+#                             is the publish itself)
+#   schedule, 00:00 UTC       a nightly build when the next version's branch changed, the timing
+#                             checks, and mutation testing: all in this run, side by side
+#   by hand                   any of the above, with `task`
+#
+# See docs/adr/0009-releases-portable-mode-and-update-check.md,
+# docs/adr/0020-signed-updates-and-nightly-builds.md,
+# docs/adr/0021-authenticode-signing-with-signpath.md and ADR 0068.
+on:
+  push:
+    tags: ["v*", "plantuml-*"]
+  pull_request:
+  release:
+    types: [published]
+  schedule:
+    # 03:00 Moscow time (UTC+3); GitHub reads schedules in UTC. The nightly build, the timing
+    # checks and mutation testing share the run.
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+    inputs:
+      task:
+        description: What to do.
+        type: choice
+        options: [checks, build, release, nightly, manifest, plantuml]
+        default: checks
+      version:
+        description: "For `build`: the version to build as (semver; numeric for the MSI)."
+        type: string
+        default: "0.0.0"
+      channel:
+        description: "For `build`: stable, beta or nightly."
+        type: string
+        default: nightly
+      sign:
+        description: "For `build`: sign the Windows files with SignPath, if it is set up."
+        type: boolean
+        default: false
+      msi:
+        description: "For `build`: build the per-machine MSI."
+        type: boolean
+        default: true
+      tag:
+        description: "For `manifest`: the release to add (v1.2.3); empty to sign it again."
+        type: string
+        default: ""
+      remove:
+        description: "For `manifest`: withdraw this version (1.2.3) from the manifest."
+        type: string
+        default: ""
+      refresh_days:
+        description: "For `manifest`: without a tag, sign again only if it is this many days old."
+        type: string
+        default: "0"
+      force:
+        description: "For `nightly`: build even if the branch did not change."
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# A pull request's new push cancels its old run; anything else (a release, a nightly) runs to the
+# end. One group per ref, so two events on the same ref queue rather than race.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+  # Fail on warnings in our crates (cargo 1.97+ `build.warnings`).
+  CARGO_BUILD_WARNINGS: deny
+  # Line numbers in backtraces and nothing more: smaller binaries link and cache faster.
+  CARGO_PROFILE_DEV_DEBUG: line-tables-only
+  # Must match the velopack crate of crates/update/Cargo.toml.
+  VELOPACK_VERSION: "1.3.39-g8d2844f"
+  # The SignPath project and its signing policy (packaging/windows/signing).
+  SIGNPATH_PROJECT: birchpad
+  SIGNPATH_POLICY: release-signing
+
+jobs:
+  # What this run is, and everything the jobs below need to know: the version, the channel, the
+  # commit to build, and which of them run at all.
+  prepare:
+    name: prepare
+    runs-on: ubuntu-latest
+    outputs:
+      mode: ${{ steps.plan.outputs.mode }}
+      build: ${{ steps.plan.outputs.build }}
+      publish: ${{ steps.plan.outputs.publish }}
+      version: ${{ steps.plan.outputs.version }}
+      channel: ${{ steps.plan.outputs.channel }}
+      prerelease: ${{ steps.plan.outputs.prerelease }}
+      sign: ${{ steps.plan.outputs.sign }}
+      msi: ${{ steps.plan.outputs.msi }}
+      ref: ${{ steps.plan.outputs.ref }}
+      tag: ${{ steps.plan.outputs.tag }}
+      remove: ${{ steps.plan.outputs.remove }}
+      refresh: ${{ steps.plan.outputs.refresh }}
+    env:
+      RELEASE_TAG: ${{ github.event.release.tag_name }}
+      INPUT_TASK: ${{ inputs.task }}
+      INPUT_VERSION: ${{ inputs.version }}
+      INPUT_CHANNEL: ${{ inputs.channel }}
+      INPUT_SIGN: ${{ inputs.sign }}
+      INPUT_MSI: ${{ inputs.msi }}
+      INPUT_TAG: ${{ inputs.tag }}
+      INPUT_REMOVE: ${{ inputs.remove }}
+      INPUT_REFRESH_DAYS: ${{ inputs.refresh_days }}
+      INPUT_FORCE: ${{ inputs.force }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The branches and tags, to find the branch of the next version, the last nightly build
+          # and the released versions.
+          fetch-depth: 0
+      - name: Plan
+        id: plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          mode=none
+          build=false
+          publish=false
+          version=""
+          channel=stable
+          prerelease=false
+          sign=false
+          msi=false
+          ref=""
+          tag=""
+          remove=""
+          refresh=0
+
+          case "$GITHUB_EVENT_NAME" in
+            pull_request) mode=checks ;;
+            schedule) mode=nightly ;;
+            release)
+              tag="${RELEASE_TAG:-}"
+              case "$tag" in
+                v*) mode=manifest ;;
+                *) echo "::notice::$tag is not a release of Birchpad: nothing to add." ;;
+              esac
+              ;;
+            push)
+              tag="$GITHUB_REF_NAME"
+              case "$tag" in
+                plantuml-*) mode=plantuml ;;
+                # Nightly tags are made by the nightly run itself, not pushed by a person.
+                *-nightly.*) echo "::notice::$tag is a nightly release: nothing to build." ;;
+                v*) mode=release ;;
+                *) echo "::notice::$tag is not a version tag: nothing to do." ;;
+              esac
+              ;;
+            workflow_dispatch)
+              case "${INPUT_TASK:-checks}" in
+                release) mode=release; tag="$GITHUB_REF_NAME" ;;
+                nightly) mode=nightly ;;
+                build) mode=build ;;
+                manifest) mode=manifest ;;
+                plantuml) mode=plantuml ;;
+                *) mode=checks ;;
+              esac
+              ;;
+          esac
+
+          if [ "$mode" = release ]; then
+            if [ "${GITHUB_REF_TYPE:-}" != "tag" ]; then
+              echo "::error::A release is built from a v* tag, not from ${GITHUB_REF_NAME}"
+              exit 1
+            fi
+            version="${tag#v}"
+            case "$version" in
+              *-nightly*)
+                echo "::error::Nightly builds come from the nightly run, not from tags"
+                exit 1
+                ;;
+              *-beta*|*-rc*) channel=beta; prerelease=true ;;
+              *-*) channel=nightly; prerelease=true ;;
+              *) channel=stable ;;
+            esac
+            # Windows files are signed when SignPath is set up (packaging/windows/signing).
+            sign=true
+            # MSI versions are numeric (major.minor.build); pre-releases get no MSI until there
+            # is a mapping for them (ADR 0005).
+            if [ "$prerelease" = false ]; then msi=true; fi
+            build=true
+            publish=true
+          fi
+
+          if [ "$mode" = build ]; then
+            version="${INPUT_VERSION:-0.0.0}"
+            channel="${INPUT_CHANNEL:-nightly}"
+            if [ "${INPUT_SIGN:-false}" = "true" ]; then sign=true; fi
+            if [ "${INPUT_MSI:-true}" = "true" ]; then msi=true; fi
+            build=true
+          fi
+
+          if [ "$mode" = nightly ]; then
+            if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] && [ "$GITHUB_REF" != "refs/heads/main" ]; then
+              echo "::error::Run the nightly task on main; it finds the branch of the next version itself"
+              exit 1
+            fi
+            # A night without a new build still signs the manifest again once a week, so that it
+            # never expires.
+            refresh=7
+            branch=""
+            for candidate in $(git for-each-ref --format='%(refname:lstrip=3)' 'refs/remotes/origin/v*' \
+                | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sort -V); do
+              if ! git rev-parse -q --verify "refs/tags/$candidate" > /dev/null; then
+                branch="$candidate"
+                break
+              fi
+            done
+            if [ -z "$branch" ]; then
+              echo "::notice::No branch of an unreleased version (v<major>.<minor>.<patch>): nothing to build."
+            else
+              head=$(git rev-parse "refs/remotes/origin/$branch")
+              base=$(git show "$head:Cargo.toml" \
+                | python3 -c 'import sys, tomllib; print(tomllib.loads(sys.stdin.read())["workspace"]["package"]["version"])')
+              if [ "v$base" != "$branch" ]; then
+                echo "::error::The workspace version on branch $branch is $base: raise it to ${branch#v}, so that nightly builds are pre-releases of the version being developed"
+                exit 1
+              fi
+              last=$(git tag --list 'v*-nightly.*' --sort=-creatordate | head -n 1)
+              if [ -n "$last" ] && [ "$(git rev-list -n 1 "$last")" = "$head" ] \
+                  && [ "${INPUT_FORCE:-false}" != "true" ]; then
+                echo "$branch has not changed since $last."
+              else
+                version="$base-nightly.$(date -u +%Y%m%d).$GITHUB_RUN_NUMBER"
+                ref="$head"
+                build=true
+                publish=true
+                echo "Building $version from $branch at $head."
+              fi
+            fi
+          fi
+
+          if [ "$mode" = manifest ]; then
+            # A release event names its own tag; by hand, the input does.
+            if [ -n "${RELEASE_TAG:-}" ]; then tag="$RELEASE_TAG"; fi
+            if [ -z "$tag" ]; then tag="${INPUT_TAG:-}"; fi
+            remove="${INPUT_REMOVE:-}"
+            refresh="${INPUT_REFRESH_DAYS:-0}"
+          fi
+
+          {
+            echo "mode=$mode"
+            echo "build=$build"
+            echo "publish=$publish"
+            echo "version=$version"
+            echo "channel=$channel"
+            echo "prerelease=$prerelease"
+            echo "sign=$sign"
+            echo "msi=$msi"
+            echo "ref=$ref"
+            echo "tag=$tag"
+            echo "remove=$remove"
+            echo "refresh=$refresh"
+          } >> "$GITHUB_OUTPUT"
+
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+        if: steps.plan.outputs.mode == 'release'
+      - name: Check the tag against the workspace version
+        if: steps.plan.outputs.mode == 'release'
+        shell: bash
+        run: |
+          manifest=$(python3 -c 'import tomllib; print(tomllib.load(open("Cargo.toml", "rb"))["workspace"]["package"]["version"])')
+          if [ "${{ steps.plan.outputs.version }}" != "$manifest" ]; then
+            echo "::error::Tag ${{ steps.plan.outputs.tag }} does not match the workspace version $manifest"
+            exit 1
+          fi
+      # A library crate's version rose since the last release only if the crate changed
+      # (CONTRIBUTING.md, Versions).
+      - name: Check the crate versions
+        if: steps.plan.outputs.mode == 'release'
+        run: cargo run -q -p birchpad-release-tool --locked -- crate-versions
+
+  # ---------------------------------------------------------------------------------------
+  # Checks and tests: a pull request, or a run asked for with `task: checks`.
+  # ---------------------------------------------------------------------------------------
+
+  fmt:
+    name: format
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - run: cargo fmt --all --check
+
+  deny:
+    name: licenses and advisories
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: EmbarkStudios/cargo-deny-action@v2
+
+  # Which code no test runs: a report per crate and per file in the run's summary, an lcov file
+  # for tools, and for each crate a floor under the share of lines run that only ever rises
+  # (.github/coverage-floors.toml; CONTRIBUTING.md, Tests).
+  coverage:
+    name: coverage
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/linux-deps
+        with:
+          # The end-to-end tests run the built application on a virtual display.
+          extra: xvfb xauth mesa-vulkan-drivers
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          components: llvm-tools-preview
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-llvm-cov,cargo-nextest
+      # With the end-to-end tests, whose runs of the application count too: main.rs is measured.
+      - name: Tests with coverage
+        run: >
+          xvfb-run -a cargo llvm-cov nextest --workspace --features birchpad/e2e --locked
+          --profile ci --lcov --output-path lcov.info
+      - name: Test the floor check
+        run: python3 -m unittest discover -s .github -p "*_test.py"
+      - name: Report
+        run: |
+          cargo llvm-cov report --json --summary-only > coverage.json
+          {
+            echo '## Test coverage by crate'
+            python3 .github/coverage_floors.py < coverage.json || failed=1
+            echo '## By file'
+            echo '```'
+            cargo llvm-cov report --summary-only
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "${failed:-0}"
+      # Under a floor too: the report tells which lines no test runs.
+      - uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: coverage-lcov
+          path: lcov.info
+
+  # libFuzzer on everything that reads outside input (fuzz/, crates/fuzz): each target for a
+  # minute from its seeds and from the corpus earlier runs grew. A crash fails the run and its
+  # input is kept; fixed, it becomes a seed.
+  fuzz:
+    name: fuzz
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          # libFuzzer needs nightly; the checks themselves are tested on the pinned toolchain
+          # (`cargo test -p birchpad-fuzz`), so new nightly warnings do not fail this job.
+          toolchain: nightly
+          rustflags: ""
+          # fuzz/ is a workspace of its own.
+          cache-workspaces: fuzz -> target
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-fuzz
+      - uses: actions/cache@v6
+        with:
+          path: fuzz/corpus
+          key: fuzz-corpus-${{ github.run_id }}
+          restore-keys: fuzz-corpus-
+      # The prebuilt cargo-fuzz is a musl build, and builds for its own target unless told.
+      - name: Build the targets
+        run: cargo +nightly fuzz build --target x86_64-unknown-linux-gnu
+      - name: Fuzz each target
+        # A minute each, as many at once as the runner has cores; xargs fails if one does.
+        run: |
+          cargo +nightly fuzz list | xargs -P "$(nproc)" -I{} sh -c '
+            mkdir -p "fuzz/corpus/{}"
+            cargo +nightly fuzz run --target x86_64-unknown-linux-gnu "{}" \
+              "fuzz/corpus/{}" "fuzz/seeds/{}" -- -max_total_time=60 -timeout=10 \
+              > "fuzz-{}.log" 2>&1 || { cat "fuzz-{}.log"; exit 1; }
+            tail -n 1 "fuzz-{}.log"'
+      - if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fuzz-artifacts
+          path: fuzz/artifacts
+
+  # Clippy, the tests and the end-to-end tests on Ubuntu, and the tests against Debian's own
+  # libraries, the stable and the previous stable release: the Linux build is used there as much
+  # as on Ubuntu.
+  linux-clippy:
+    name: clippy (ubuntu-latest)
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/linux-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - run: cargo clippy --workspace --all-targets --locked
+      - run: cargo clippy -p birchpad --features e2e --all-targets --locked
+      # The application as releases build it: without the tests' features, which the targets
+      # above turn on through the dev-dependencies.
+      - run: cargo clippy -p birchpad --locked
+
+  linux-test:
+    name: test (ubuntu-latest)
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/linux-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - run: cargo nextest run --workspace --locked --profile ci
+
+  debian:
+    name: test (debian ${{ matrix.release }})
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    strategy:
+      fail-fast: false
+      matrix:
+        release: [trixie, bookworm]
+    runs-on: ubuntu-latest
+    container: debian:${{ matrix.release }}
+    steps:
+      # Without git in the image, the checkout downloads the commit's files, which is all the
+      # build needs.
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/linux-deps
+      - name: Install Rust
+        run: |
+          curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs \
+            | sh -s -- -y --profile minimal --default-toolchain none
+          echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+      # The version and components of rust-toolchain.toml.
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: debian-${{ matrix.release }}
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - run: cargo nextest run --workspace --locked --profile ci
+
+  # The built application in a real window (crates/app/tests/e2e.rs): start, open, edit, save,
+  # quit, restore the session, on a virtual display with software Vulkan. Non-blocking until it
+  # has been green on the runners.
+  linux-e2e:
+    name: e2e (ubuntu-latest)
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/linux-deps
+        with:
+          extra: xvfb xauth mesa-vulkan-drivers
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - run: xvfb-run -a cargo test -p birchpad --features e2e --test e2e --locked
+
+  # Clippy and the tests on Windows x64 and ARM64, the end-to-end tests on x64.
+  windows-clippy:
+    name: clippy (${{ matrix.os }})
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
+        include:
+          - os: windows-11-arm
+            experimental: true
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental == true }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - run: cargo clippy --workspace --all-targets --locked
+      - run: cargo clippy -p birchpad --features e2e --all-targets --locked
+      - run: cargo clippy -p birchpad --locked
+
+  windows-test:
+    name: test (${{ matrix.os }})
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest]
+        include:
+          # Windows on ARM is a release target; keep it visible but non-blocking until it is green.
+          - os: windows-11-arm
+            experimental: true
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental == true }}
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - run: cargo nextest run --workspace --locked --profile ci
+
+  windows-e2e:
+    name: e2e (windows-latest)
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - run: cargo test -p birchpad --features e2e --test e2e --locked
+
+  # Clippy, the tests and the end-to-end tests on macOS.
+  macos-clippy:
+    name: clippy (macos-latest)
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - run: cargo clippy --workspace --all-targets --locked
+      - run: cargo clippy -p birchpad --features e2e --all-targets --locked
+      - run: cargo clippy -p birchpad --locked
+
+  macos-test:
+    name: test (macos-latest)
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-nextest
+      - run: cargo nextest run --workspace --locked --profile ci
+
+  macos-e2e:
+    name: e2e (macos-latest)
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'checks'
+    runs-on: macos-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - run: cargo test -p birchpad --features e2e --test e2e --locked
+
+  # ---------------------------------------------------------------------------------------
+  # Night by night, beside the build: the timing checks and mutation testing.
+  # ---------------------------------------------------------------------------------------
+
+  # The timing checks (tests marked `#[ignore = "... run in release"]`): opening, searching and
+  # editing a 100 MB document, wrapping and folding it, a frame of the editor view and typing with
+  # many carets. Each fails when it takes longer than its limit (birchpad_core::timing), so that a
+  # slowdown shows the night after it lands. In release, one at a time, so that the checks do not
+  # slow each other down.
+  timings:
+    name: timings
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'nightly'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/linux-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - name: Timing checks
+        run: >
+          cargo test --release --locked -p birchpad-core -p birchpad-io -p birchpad-view
+          -p birchpad-editor -- --ignored --nocapture --test-threads=1
+
+  # Mutation testing of the crates without a window (.cargo/mutants.toml): cargo-mutants changes
+  # the code a little at a time and runs the crate's tests; a change no test notices is a gap in
+  # them. Each crate has a floor under the share of mutants caught that only rises
+  # (.github/mutants-floors.toml). A job per crate side by side; the mutants that survive are
+  # listed in the run's summary and uploaded.
+  mutants:
+    name: mutants (${{ matrix.crate }})
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'nightly'
+    runs-on: ubuntu-latest
+    timeout-minutes: 300
+    strategy:
+      fail-fast: false
+      matrix:
+        crate: [cli, commands, config, core, git, i18n, io, lsp, plugin, syntax, terminal, theme, tools, update, view]
+    steps:
+      - uses: actions/checkout@v7
+      - uses: ./.github/actions/linux-deps
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-mutants,cargo-nextest
+      - name: Mutants of birchpad-${{ matrix.crate }}
+        # Missed mutants make cargo-mutants exit with 2; the floor decides instead.
+        run: cargo mutants --package "birchpad-${{ matrix.crate }}" --no-shuffle || [ $? -eq 2 ]
+      - name: Against the floor
+        run: |
+          {
+            echo "## Mutants of ${{ matrix.crate }}"
+            python3 .github/mutants_floors.py "${{ matrix.crate }}" < mutants.out/outcomes.json \
+              || failed=1
+            echo '### Missed'
+            echo '```'
+            cat mutants.out/missed.txt || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit "${failed:-0}"
+      - if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: mutants-${{ matrix.crate }}
+          path: mutants.out
+
+  # ---------------------------------------------------------------------------------------
+  # The build of a release or a nightly: portable ZIPs for every platform, the per-user installer
+  # and update package for Windows (Velopack), the per-machine MSI when asked, and the SBOM.
+  # Windows files are signed with SignPath (packaging/windows/signing/README.md) when the run asks
+  # and the repository is set up for it: first the executables, which the packages then contain,
+  # then the installers. Each signing request waits for a maintainer's approval.
+  #
+  # It builds the commit that started the run, or the one the nightly found at the head of a
+  # branch of this repository, never one typed in by hand or taken from a pull request: release
+  # jobs run with access to the default branch's context and must not run other code.
+  # ---------------------------------------------------------------------------------------
+
+  keys:
+    name: update keys
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    env:
+      BIRCHPAD_TRUSTED_KEYS: ${{ vars.BIRCHPAD_TRUSTED_KEYS }}
+    steps:
+      - name: Trusted update keys
+        shell: bash
+        # Public keys, not secrets: the log shows which keys this build trusts.
+        run: |
+          if [ -z "${BIRCHPAD_TRUSTED_KEYS//[[:space:],]/}" ]; then
+            echo "::error::The BIRCHPAD_TRUSTED_KEYS repository variable is not set: this build could never update itself (packaging/updates/README.md)"
+            exit 1
+          fi
+          echo "This build trusts update manifests signed with: $BIRCHPAD_TRUSTED_KEYS"
+      - name: Code signing
+        shell: bash
+        env:
+          SIGN: ${{ needs.prepare.outputs.sign }}
+          ORGANIZATION: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+        run: |
+          if [ "$SIGN" != "true" ]; then
+            echo "This build is not signed (nightly builds never are)."
+          elif [ -z "$ORGANIZATION" ]; then
+            echo "::warning::SignPath is not set up (packaging/windows/signing/README.md): the Windows files are unsigned."
+          else
+            echo "The Windows executables and installers are signed with SignPath: approve both signing requests."
+          fi
+
+  build:
+    name: build (${{ matrix.name }})
+    needs: [prepare, keys]
+    if: needs.prepare.outputs.build == 'true'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: windows-x64
+            os: windows-latest
+            targets: x86_64-pc-windows-msvc
+          - name: windows-arm64
+            os: windows-11-arm
+            targets: aarch64-pc-windows-msvc
+            # Non-blocking until Windows on ARM is green in CI.
+            experimental: true
+          - name: linux-x64
+            # The oldest supported runner, so the binary runs on older glibc.
+            os: ubuntu-22.04
+            targets: x86_64-unknown-linux-gnu
+          - name: macos
+            os: macos-latest
+            # Built for both architectures and combined into a universal binary.
+            targets: aarch64-apple-darwin,x86_64-apple-darwin
+    runs-on: ${{ matrix.os }}
+    continue-on-error: ${{ matrix.experimental == true }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      # Read by crates/app/build.rs.
+      BIRCHPAD_VERSION: ${{ needs.prepare.outputs.version }}
+      BIRCHPAD_CHANNEL: ${{ needs.prepare.outputs.channel }}
+      BIRCHPAD_COMMIT: ${{ needs.prepare.outputs.ref || github.sha }}
+      # The public keys update manifests must be signed with (crates/update/build.rs).
+      BIRCHPAD_TRUSTED_KEYS: ${{ vars.BIRCHPAD_TRUSTED_KEYS }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.ref || github.sha }}
+      - name: Build time
+        shell: bash
+        # Update manifests signed before this commit are refused by this build (ADR 0020).
+        run: echo "BIRCHPAD_BUILD_TIME=$(git log -1 --format=%ct)" >> "$GITHUB_ENV"
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          target: ${{ matrix.targets }}
+          # Release builds never reuse caches that other workflows could have written.
+          cache: false
+      - name: Install Linux GUI dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libxkbcommon-dev libxkbcommon-x11-dev libwayland-dev \
+            libvulkan-dev libx11-xcb-dev libxcb1-dev libfontconfig-dev libfreetype-dev \
+            libssl-dev libzstd-dev zip
+      - name: Build
+        shell: bash
+        run: |
+          IFS=',' read -ra targets <<< "${{ matrix.targets }}"
+          for target in "${targets[@]}"; do
+            cargo build --release --locked -p birchpad --target "$target"
+          done
+
+      # Windows packages are made from the signed executable, in the package-windows job.
+      - name: Keep the executable (Windows)
+        if: runner.os == 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: exe-${{ matrix.name }}
+          path: target/${{ matrix.targets }}/release/birchpad.exe
+          if-no-files-found: error
+
+      - name: Package (Linux)
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          name="birchpad-$VERSION-${{ matrix.name }}"
+          mkdir -p "dist/$name"
+          cp "target/${{ matrix.targets }}/release/birchpad" "dist/$name/"
+          cp packaging/portable/birchpad-portable.txt LICENSE-MIT LICENSE-APACHE README.md "dist/$name/"
+          # For the applications menu: see the README's Installing section.
+          cp packaging/linux/io.github.securitytrip.birchpad.desktop "dist/$name/"
+          cp packaging/icons/birchpad.png "dist/$name/io.github.securitytrip.birchpad.png"
+          cd dist
+          zip -r "$name.zip" "$name"
+          rm -r "$name"
+
+      - name: Package (macOS)
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          name="birchpad-$VERSION-${{ matrix.name }}"
+          app="dist/$name/Birchpad.app"
+          mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
+          cp packaging/icons/Birchpad.icns "$app/Contents/Resources/"
+          lipo -create -output "$app/Contents/MacOS/birchpad" \
+            target/aarch64-apple-darwin/release/birchpad \
+            target/x86_64-apple-darwin/release/birchpad
+          sed "s/@VERSION@/$VERSION/g" packaging/macos/Info.plist > "$app/Contents/Info.plist"
+          cp LICENSE-MIT LICENSE-APACHE README.md "dist/$name/"
+          # Ad-hoc signature only. Developer ID signing and notarization (ADR 0005) replace it.
+          codesign --force --deep --sign - "$app"
+          echo "::notice::Developer ID signing and notarization are not set up yet; Birchpad.app is ad-hoc signed."
+          ditto -c -k --keepParent "dist/$name" "dist/$name.zip"
+          rm -r "dist/$name"
+
+      - name: Keep the packages (Linux, macOS)
+        if: runner.os != 'Windows'
+        uses: actions/upload-artifact@v7
+        with:
+          name: dist-${{ matrix.name }}
+          path: dist/*
+          if-no-files-found: error
+
+  # The executables of both Windows platforms, signed in one request. Runs when the run asks for
+  # signing and the SIGNPATH_ORGANIZATION_ID variable is set; otherwise the packages contain the
+  # unsigned executables.
+  sign-executables:
+    name: sign the executables
+    needs: [prepare, build]
+    if: ${{ !cancelled() && needs.build.result == 'success' && needs.prepare.outputs.sign == 'true' && vars.SIGNPATH_ORGANIZATION_ID != '' }}
+    runs-on: ubuntu-latest
+    # Holds the SIGNPATH_API_TOKEN secret.
+    environment: code-signing
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: exe-*
+          path: executables
+      - id: unsigned
+        uses: actions/upload-artifact@v7
+        with:
+          name: unsigned-executables
+          path: executables
+          if-no-files-found: error
+      - uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ env.SIGNPATH_PROJECT }}
+          signing-policy-slug: ${{ env.SIGNPATH_POLICY }}
+          artifact-configuration-slug: executables
+          github-artifact-id: ${{ steps.unsigned.outputs.artifact-id }}
+          parameters: |
+            version: ${{ toJSON(needs.prepare.outputs.version) }}
+          wait-for-completion: true
+          # A maintainer approves the request in SignPath.
+          wait-for-completion-timeout-in-seconds: 7200
+          output-artifact-directory: signed
+      - uses: actions/upload-artifact@v7
+        with:
+          name: signed-executables
+          path: signed
+          if-no-files-found: error
+
+  package-windows:
+    name: package (windows)
+    needs: [prepare, build, sign-executables]
+    # Signing skipped (nightly builds, SignPath not set up) is fine; signing that failed is not.
+    if: ${{ !cancelled() && needs.prepare.outputs.build == 'true' && needs.build.result == 'success' && needs.sign-executables.result != 'failure' }}
+    runs-on: windows-latest
+    outputs:
+      installers: ${{ steps.installers.outputs.artifact-id }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      CHANNEL: ${{ needs.prepare.outputs.channel }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.ref || github.sha }}
+      - name: The signed executables
+        if: needs.sign-executables.result == 'success'
+        uses: actions/download-artifact@v8
+        with:
+          name: signed-executables
+          path: executables
+      - name: The unsigned executables
+        if: needs.sign-executables.result != 'success'
+        uses: actions/download-artifact@v8
+        with:
+          pattern: exe-*
+          path: executables
+      - name: Portable ZIPs, installers and update packages
+        shell: bash
+        run: |
+          dotnet tool install --global vpk --version "$VELOPACK_VERSION"
+          export PATH="$PATH:$USERPROFILE/.dotnet/tools"
+          mkdir -p dist installers
+          for platform in windows-x64 windows-arm64; do
+            exe="executables/exe-$platform/birchpad.exe"
+            if [ ! -f "$exe" ]; then
+              echo "::warning::No executable for $platform: it failed to build."
+              continue
+            fi
+            name="birchpad-$VERSION-$platform"
+            mkdir -p "zip/$name"
+            cp "$exe" packaging/portable/birchpad-portable.txt LICENSE-MIT LICENSE-APACHE README.md "zip/$name/"
+            # Windows' own bsdtar writes zip files (Git Bash's tar does not).
+            (cd zip && /c/Windows/System32/tar.exe -a -c -f "../dist/$name.zip" "$name")
+
+            rm -rf velopack && mkdir -p velopack/in velopack/out
+            cp "$exe" LICENSE-MIT LICENSE-APACHE README.md velopack/in/
+            # Full packages only: the signed manifest lists no deltas (ADR 0020).
+            vpk pack --packId Birchpad --packVersion "$VERSION" --packTitle Birchpad \
+              --packAuthors "The Birchpad Contributors" --packDir velopack/in \
+              --mainExe birchpad.exe --icon packaging/icons/birchpad.ico \
+              --runtime "win-${platform#windows-}" \
+              --channel "$platform-$CHANNEL" --delta None --noPortable \
+              --outputDir velopack/out
+            ls -l velopack/out
+            # Both Windows platforms upload to one release: one name per platform.
+            cp velopack/out/*-full.nupkg "dist/$name-full.nupkg"
+            cp velopack/out/*-Setup.exe "installers/$name-setup.exe"
+          done
+          if [ ! -f "executables/exe-windows-x64/birchpad.exe" ]; then
+            echo "::error::Windows x64 failed to build."
+            exit 1
+          fi
+      - name: MSI
+        if: needs.prepare.outputs.msi == 'true'
+        shell: bash
+        run: |
+          IFS=. read -r major minor patch <<< "$VERSION"
+          if [ "$major" -gt 255 ] || [ "$minor" -gt 255 ] || [ "$patch" -gt 65535 ]; then
+            echo "::error::$VERSION cannot be an MSI version (major and minor < 256, build < 65536)"
+            exit 1
+          fi
+          dotnet tool install --global wix --version 5.0.2
+          export PATH="$PATH:$USERPROFILE/.dotnet/tools"
+          wix build packaging/windows/Birchpad.wxs -arch x64 \
+            -d Version="$VERSION" -d BinDir="$(cygpath -w "$PWD/executables/exe-windows-x64")" \
+            -d IconFile="$(cygpath -w "$PWD/packaging/icons/birchpad.ico")" \
+            -o "installers/birchpad-$VERSION-windows-x64.msi"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-windows
+          path: dist/*
+          if-no-files-found: error
+      # Unsigned installers go to the release as they are, or to signing first.
+      - id: installers
+        uses: actions/upload-artifact@v7
+        with:
+          name: ${{ needs.sign-executables.result == 'success' && 'unsigned-installers' || 'dist-installers' }}
+          path: installers/*
+          if-no-files-found: error
+
+  # The installers (Velopack's for both platforms, and the MSI), signed in one request, when the
+  # executables were.
+  sign-installers:
+    name: sign the installers
+    needs: [prepare, sign-executables, package-windows]
+    if: ${{ !cancelled() && needs.sign-executables.result == 'success' && needs.package-windows.result == 'success' }}
+    runs-on: ubuntu-latest
+    environment: code-signing
+    steps:
+      - uses: signpath/github-action-submit-signing-request@v3
+        with:
+          api-token: ${{ secrets.SIGNPATH_API_TOKEN }}
+          organization-id: ${{ vars.SIGNPATH_ORGANIZATION_ID }}
+          project-slug: ${{ env.SIGNPATH_PROJECT }}
+          signing-policy-slug: ${{ env.SIGNPATH_POLICY }}
+          artifact-configuration-slug: installers
+          github-artifact-id: ${{ needs.package-windows.outputs.installers }}
+          parameters: |
+            version: ${{ toJSON(needs.prepare.outputs.version) }}
+          wait-for-completion: true
+          wait-for-completion-timeout-in-seconds: 7200
+          output-artifact-directory: signed
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-installers
+          path: signed/*
+          if-no-files-found: error
+
+  sbom:
+    name: sbom
+    needs: prepare
+    if: needs.prepare.outputs.build == 'true'
+    runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ needs.prepare.outputs.ref || github.sha }}
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache: false
+      - uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-cyclonedx
+      - name: Generate the SBOM
+        shell: bash
+        run: |
+          cargo cyclonedx --format json --spec-version 1.5 --target all
+          mkdir -p dist
+          cp crates/app/birchpad.cdx.json "dist/birchpad-$VERSION-sbom.cdx.json"
+      - uses: actions/upload-artifact@v7
+        with:
+          name: dist-sbom
+          path: dist/*
+          if-no-files-found: error
+
+  # A version tag: the artifacts as a draft release, which a maintainer reviews and publishes;
+  # publishing it signs the manifest (the `release` event, below).
+  publish:
+    name: draft release
+    needs: [prepare, build, package-windows, sbom]
+    # Runs when nothing failed.
+    if: ${{ !cancelled() && !failure() && needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.mode == 'release' && needs.package-windows.result == 'success' && needs.sbom.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      TAG: ${{ needs.prepare.outputs.tag }}
+      PRERELEASE: ${{ needs.prepare.outputs.prerelease }}
+      SIGNED: ${{ vars.SIGNPATH_ORGANIZATION_ID != '' }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum -- * > "birchpad-$VERSION-SHA256SUMS.txt"
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*
+      - name: Release notes
+        shell: bash
+        # The version's section of CHANGELOG.md, or GitHub's generated notes without one, and
+        # the code signing policy, which SignPath Foundation requires on download pages.
+        run: |
+          policy="https://github.com/$GITHUB_REPOSITORY#code-signing-policy"
+          if [ "$SIGNED" = "true" ]; then
+            footer="Free code signing provided by SignPath.io, certificate by SignPath Foundation. [Code signing policy]($policy)"
+          else
+            footer="The Windows files of this release are not signed. [Code signing policy]($policy)"
+          fi
+          awk -v heading="## [$VERSION]" '
+            index($0, heading) == 1 { inside = 1; next }
+            inside && /^## / { exit }
+            inside && /^\[[^]]+\]: / { next }
+            inside { print }
+          ' CHANGELOG.md > notes.md
+          if [ -s notes.md ] && grep -q '[^[:space:]]' notes.md; then
+            printf '\n---\n\n%s\n' "$footer" >> notes.md
+            echo "NOTES=--notes-file=notes.md" >> "$GITHUB_ENV"
+          else
+            echo "::warning::CHANGELOG.md has no section for $VERSION; using generated notes"
+            printf '%s\n' "$footer" > notes.md
+            echo "NOTES=--generate-notes" >> "$GITHUB_ENV"
+          fi
+      - name: Create a draft release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          flags=(--draft --verify-tag "$NOTES" --title "Birchpad $VERSION")
+          if [ "$NOTES" = "--generate-notes" ]; then
+            flags+=(--notes-file notes.md)
+          fi
+          if [ "$PRERELEASE" = "true" ]; then
+            flags+=(--prerelease)
+          fi
+          gh release create "$TAG" --repo "$GITHUB_REPOSITORY" "${flags[@]}" dist/*
+
+  # A nightly: the same artifacts as a pre-release `v<version>-nightly.<date>.<run>`, keeping
+  # the ten newest.
+  publish-nightly:
+    name: nightly release
+    needs: [prepare, build, package-windows, sbom]
+    if: ${{ !cancelled() && !failure() && needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.mode == 'nightly' && needs.package-windows.result == 'success' && needs.sbom.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    outputs:
+      tag: ${{ steps.release.outputs.tag }}
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
+      REF: ${{ needs.prepare.outputs.ref }}
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: dist-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum -- * > "birchpad-$VERSION-SHA256SUMS.txt"
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*
+      - name: Publish the pre-release
+        id: release
+        shell: bash
+        run: |
+          tag="v$VERSION"
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$REF" \
+            --prerelease --latest=false --title "Birchpad $VERSION" \
+            --notes "Nightly build of the branch of the next version at $REF. Nightly builds are untested snapshots; the per-user installer updates itself to newer nightly builds. They are not signed: [Code signing policy](https://github.com/$GITHUB_REPOSITORY#code-signing-policy)." \
+            dist/*
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Keep the ten newest nightly releases
+        shell: bash
+        run: |
+          gh release list --repo "$GITHUB_REPOSITORY" --limit 200 \
+            --json tagName,createdAt --jq '.[] | select(.tagName | test("-nightly\\.")) | "\(.createdAt) \(.tagName)"' \
+            | sort -r | tail -n +11 | while read -r _ tag; do
+              echo "Deleting $tag"
+              gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+            done
+
+  # ---------------------------------------------------------------------------------------
+  # The signed update manifest (ADR 0020, ADR 0068, packaging/updates/README.md).
+  # ---------------------------------------------------------------------------------------
+
+  # Adds a published release to the signed update manifest, or signs the manifest again so that
+  # it does not expire, and publishes it as the `birchpad-updates.json` asset of the `updates`
+  # release.
+  #
+  # The signing key is the BIRCHPAD_UPDATE_KEY secret of the `update-signing` environment, which
+  # can require approval or limit the branches that use it. The public keys that releases trust
+  # are the BIRCHPAD_TRUSTED_KEYS repository variable.
+  manifest:
+    name: update manifest
+    needs: [prepare, publish-nightly]
+    # A release event, a run asked for it, or a night: a new nightly build, or a week without one.
+    if: ${{ !cancelled() && (needs.prepare.outputs.mode == 'manifest' || (needs.prepare.outputs.mode == 'nightly' && (needs.prepare.outputs.build != 'true' || needs.publish-nightly.result == 'success'))) }}
+    runs-on: ubuntu-latest
+    environment: update-signing
+    # One manifest change at a time: each extends the manifest the previous one wrote.
+    concurrency:
+      group: update-manifest
+      cancel-in-progress: false
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      REPO: ${{ github.repository }}
+      TAG: ${{ needs.publish-nightly.outputs.tag || needs.prepare.outputs.tag }}
+      REMOVE: ${{ needs.prepare.outputs.remove }}
+      REFRESH_DAYS: ${{ needs.prepare.outputs.refresh }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          # The tool of the default branch, not of the release.
+          ref: ${{ github.event.repository.default_branch || 'main' }}
+      - uses: actions-rust-lang/setup-rust-toolchain@v2
+        with:
+          cache: false
+      - name: Build the release tool
+        run: cargo build --release --locked -p birchpad-release-tool
+      - name: Fetch the current manifest
+        shell: bash
+        run: |
+          mkdir -p current
+          if gh release download updates --repo "$REPO" --pattern birchpad-updates.json --dir current; then
+            echo "MANIFEST=current/birchpad-updates.json" >> "$GITHUB_ENV"
+          else
+            echo "::notice::No update manifest yet; starting one."
+            echo "MANIFEST=current/none.json" >> "$GITHUB_ENV"
+          fi
+      - name: Change and sign the manifest
+        shell: bash
+        env:
+          BIRCHPAD_UPDATE_KEY: ${{ secrets.BIRCHPAD_UPDATE_KEY }}
+          BIRCHPAD_TRUSTED_KEYS: ${{ vars.BIRCHPAD_TRUSTED_KEYS }}
+        run: |
+          tool=target/release/birchpad-release
+          if [ -z "$BIRCHPAD_UPDATE_KEY" ]; then
+            echo "::error::The BIRCHPAD_UPDATE_KEY secret is not set (packaging/updates/README.md)"
+            exit 1
+          fi
+          if [ -z "$BIRCHPAD_TRUSTED_KEYS" ]; then
+            echo "::error::The BIRCHPAD_TRUSTED_KEYS repository variable is not set (packaging/updates/README.md)"
+            exit 1
+          fi
+          if [ -n "$REMOVE" ]; then
+            "$tool" remove --manifest "$MANIFEST" --out birchpad-updates.json --version "$REMOVE"
+          elif [ -n "$TAG" ]; then
+            if [ "$TAG" = "updates" ]; then
+              echo "The manifest's own release: nothing to add."
+              exit 0
+            fi
+            version="${TAG#v}"
+            mkdir -p packages
+            packages=()
+            for platform in windows-x64 windows-arm64; do
+              file="birchpad-$version-$platform-full.nupkg"
+              if gh release download "$TAG" --repo "$REPO" --pattern "$file" --dir packages; then
+                packages+=(--package "$platform=packages/$file")
+              else
+                echo "::warning::$TAG has no $file: $platform users get the download page."
+              fi
+            done
+            "$tool" add --new --manifest "$MANIFEST" --out birchpad-updates.json \
+              --version "$version" \
+              --page "https://github.com/$REPO/releases/tag/$TAG" \
+              --download-base "https://github.com/$REPO/releases/download/$TAG" \
+              "${packages[@]}"
+          elif [ -f "$MANIFEST" ]; then
+            "$tool" refresh --manifest "$MANIFEST" --out birchpad-updates.json \
+              --if-older-than-days "$REFRESH_DAYS"
+          else
+            echo "No manifest to sign again."
+          fi
+          if [ -f birchpad-updates.json ]; then
+            "$tool" verify --manifest birchpad-updates.json
+          fi
+      - name: Publish the manifest
+        shell: bash
+        run: |
+          if [ ! -f birchpad-updates.json ]; then
+            echo "Nothing to publish."
+            exit 0
+          fi
+          if ! gh release view updates --repo "$REPO" > /dev/null 2>&1; then
+            gh release create updates --repo "$REPO" --prerelease --latest=false \
+              --target "${{ github.event.repository.default_branch || 'main' }}" \
+              --title "Update manifest" \
+              --notes "The signed manifest Birchpad checks for updates (ADR 0020, ADR 0068). Not a release: the files of a version are on its own release page."
+          fi
+          gh release upload updates --repo "$REPO" --clobber birchpad-updates.json
+
+  # ---------------------------------------------------------------------------------------
+  # The PlantUML packages of the preview (ADR 0045, ADR 0063): PlantUML's EPL build, which has
+  # the ELK layout, the Xtext library its ELK needs, and a Java runtime made for them with jlink
+  # (Eclipse Temurin), a ZIP for each platform Birchpad runs on, published as the release of the
+  # tag pushed, `plantuml-<PlantUML's version>-<revision>`. Birchpad pins each package's URL,
+  # size and SHA-256 (crates/update/src/component.rs) and downloads one only when the user
+  # installs PlantUML from a preview.
+  # ---------------------------------------------------------------------------------------
+
+  plantuml-package:
+    name: plantuml (${{ matrix.platform }})
+    needs: prepare
+    if: needs.prepare.outputs.mode == 'plantuml'
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-x64
+            os: windows-latest
+            arch: x64
+          - platform: windows-arm64
+            os: windows-11-arm
+            arch: aarch64
+          - platform: linux-x64
+            os: ubuntu-22.04
+            arch: x64
+          - platform: macos-arm64
+            os: macos-latest
+            arch: aarch64
+          # An x64 Java on an Apple Silicon runner, which runs it through Rosetta.
+          - platform: macos-x64
+            os: macos-latest
+            arch: x64
+    runs-on: ${{ matrix.os }}
+    env:
+      PLANTUML_VERSION: "1.2026.9"
+      # Of plantuml-epl-1.2026.9.jar on Maven Central.
+      PLANTUML_SHA256: "190dcdde4b5dd7aca450d4c97202b7fa8f8e3efa1407f56a5a3539c4cea0c5fa"
+      # ELK in the EPL build calls Xtext's library (`CollectionLiterals`), which the build lacks.
+      XBASE_VERSION: "2.40.0"
+      # Of org.eclipse.xtext.xbase.lib-2.40.0.jar on Maven Central.
+      XBASE_SHA256: "5a810154295fc20a0268cae4cbbc6e5a35a8b32480d8727dc8301910524e4b79"
+      JAVA_VERSION: "21"
+    steps:
+      - uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: ${{ env.JAVA_VERSION }}
+          architecture: ${{ matrix.arch }}
+      - name: Download PlantUML and Xtext's library
+        shell: bash
+        run: |
+          # A file from Maven Central, checked against its SHA-256.
+          fetch() {
+            curl -sSfL -o "$1" "https://repo1.maven.org/maven2/$2"
+            actual=$(openssl dgst -sha256 -r "$1" | cut -d' ' -f1)
+            if [ "$actual" != "$3" ]; then
+              echo "::error::$2 has SHA-256 $actual, not $3"
+              exit 1
+            fi
+          }
+          fetch plantuml.jar \
+            "net/sourceforge/plantuml/plantuml-epl/$PLANTUML_VERSION/plantuml-epl-$PLANTUML_VERSION.jar" \
+            "$PLANTUML_SHA256"
+          fetch xbase.jar \
+            "org/eclipse/xtext/org.eclipse.xtext.xbase.lib/$XBASE_VERSION/org.eclipse.xtext.xbase.lib-$XBASE_VERSION.jar" \
+            "$XBASE_SHA256"
+      - name: Make the Java runtime
+        shell: bash
+        run: |
+          # jdeps cannot list them for the EPL build: the Guava in it names a module that is not
+          # there. These are what the MIT build's runtime had, on which ELK was checked, with
+          # jdk.unsupported, which Guava uses when it is there.
+          modules="java.base,java.datatransfer,java.desktop,java.logging,java.prefs,java.scripting,java.xml,jdk.unsupported"
+          echo "Modules: $modules"
+          jlink --add-modules "$modules" --strip-debug --no-man-pages --no-header-files \
+            --compress=zip-6 --output package/jre
+          mkdir package/lib
+          cp plantuml.jar package/plantuml.jar
+          cp xbase.jar package/lib/org.eclipse.xtext.xbase.lib.jar
+          cat > package/README.txt <<EOF
+          PlantUML $PLANTUML_VERSION for Birchpad's previews.
+
+          plantuml.jar: PlantUML's EPL build (https://plantuml.com), with the ELK layout, under
+          the Eclipse Public License 2.0 (https://www.eclipse.org/legal/epl-2.0/); its notices
+          are in the jar (META-INF, about.html), and its source is on Maven Central as
+          net.sourceforge.plantuml:plantuml-epl:$PLANTUML_VERSION:sources.
+          lib/org.eclipse.xtext.xbase.lib.jar: Eclipse Xtext's library $XBASE_VERSION
+          (https://eclipse.dev/Xtext/), which ELK needs, under the Eclipse Public License 2.0;
+          its source is on Maven Central as
+          org.eclipse.xtext:org.eclipse.xtext.xbase.lib:$XBASE_VERSION:sources.
+          jre: a Java $JAVA_VERSION runtime made with jlink from Eclipse Temurin
+          (https://adoptium.net), under the GNU General Public License version 2 with the
+          Classpath Exception; its notices are in jre/legal.
+          EOF
+      - name: Check that it draws without Graphviz, with smetana and with ELK
+        shell: bash
+        run: |
+          java=package/jre/bin/java
+          separator=":"
+          if [ "$RUNNER_OS" = "Windows" ]; then separator=";"; fi
+          for layout in smetana elk; do
+            printf '@startuml\npackage P {\nclass A\n}\nA --> B\n@enduml\n' |
+              "$java" -Djava.awt.headless=true -cp "package/plantuml.jar${separator}package/lib/*" \
+                net.sourceforge.plantuml.Run -tsvg -pipe -Playout=$layout > drawn.svg 2> errors.txt
+            cat errors.txt
+            grep -q "<svg" drawn.svg
+            if grep -q "Exception" errors.txt; then
+              echo "::error::PlantUML could not lay out with $layout"
+              exit 1
+            fi
+          done
+      - name: Pack
+        shell: bash
+        run: |
+          name="birchpad-${GITHUB_REF_NAME}-${{ matrix.platform }}.zip"
+          mkdir dist
+          if [ "$RUNNER_OS" = "Windows" ]; then
+            (cd package && 7z a -tzip -mx=9 "../dist/$name" .)
+          else
+            (cd package && zip -r -9 -X "../dist/$name" .)
+          fi
+          ls -l dist
+      - uses: actions/upload-artifact@v7
+        with:
+          name: plantuml-${{ matrix.platform }}
+          path: dist/*.zip
+          if-no-files-found: error
+
+  plantuml-release:
+    name: plantuml release
+    needs: [prepare, plantuml-package]
+    if: ${{ !cancelled() && needs.prepare.outputs.mode == 'plantuml' && needs.plantuml-package.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+      attestations: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PLANTUML_VERSION: "1.2026.9"
+      JAVA_VERSION: "21"
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: plantuml-*
+          path: dist
+          merge-multiple: true
+      - uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: dist/*.zip
+      - name: Publish
+        shell: bash
+        run: |
+          cd dist
+          {
+            echo "PlantUML $PLANTUML_VERSION with a Java $JAVA_VERSION runtime, for Birchpad's"
+            echo "PlantUML previews, which install it when asked. Not a release of Birchpad."
+            echo
+            echo '| Package | Bytes | SHA-256 |'
+            echo '|---|---|---|'
+            for file in *.zip; do
+              echo "| $file | $(stat -c %s "$file") | $(sha256sum "$file" | cut -d' ' -f1) |"
+            done
+          } > ../notes.md
+          sha256sum *.zip > checksums.txt
+          cat ../notes.md
+          gh release create "$GITHUB_REF_NAME" --repo "$GITHUB_REPOSITORY" --prerelease \
+            --title "PlantUML $PLANTUML_VERSION for Birchpad" --notes-file ../notes.md \
+            *.zip checksums.txt

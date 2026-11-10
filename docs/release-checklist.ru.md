@@ -14,8 +14,8 @@ Silicon, Linux (Ubuntu или Debian, под X11 и под Wayland). Windows н�
 
 ## Перед тегом
 
-- [ ] CI в `main` зелёный, включая необязательные задания (Windows на ARM, сквозные тесты в
-      Linux и macOS, фаззинг); причина красного понята и записана
+- [ ] CI на выпускаемом pull request зелёный, включая необязательные задания (Windows на ARM,
+      сквозные тесты в Linux и macOS, фаззинг); причина красного понята и записана
 - [ ] `CHANGELOG.md`: раздел `[Unreleased]` становится разделом версии с датой; версия рабочей
       области в `Cargo.toml` совпадает с тегом
 - [ ] `cargo run -p birchpad-release-tool -- crate-versions` проходит: crate'ы, изменившиеся с
