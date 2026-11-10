@@ -1,0 +1,8 @@
+# Local builds keep no incremental state: the machines this fork is developed on are short of
+# disk, and the incremental directories of a workspace this size (26 crates, GPUI, wasmtime)
+# reach gigabytes after a few builds. Builds are clean here instead, and a cold build of the
+# whole workspace takes about four minutes on a 16-core machine.
+#
+# `CARGO_INCREMENTAL=1 cargo check` overrides this for one command, for whoever has the room.
+[build]
+incremental = false
