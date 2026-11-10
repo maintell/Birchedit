@@ -982,9 +982,9 @@ jobs:
   # publishing it signs the manifest (the `release` event, below).
   publish:
     name: draft release
-    needs: [prepare, build, package-windows, sbom]
+    needs: [prepare, build, package-windows, sign-installers, sbom]
     # Runs when nothing failed.
-    if: ${{ !cancelled() && !failure() && needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.mode == 'release' && needs.package-windows.result == 'success' && needs.sbom.result == 'success' }}
+    if: ${{ !cancelled() && !failure() && needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.mode == 'release' && needs.package-windows.result == 'success' && needs.sign-installers.result != 'failure' && needs.sbom.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -1054,8 +1054,8 @@ jobs:
   # the ten newest.
   publish-nightly:
     name: nightly release
-    needs: [prepare, build, package-windows, sbom]
-    if: ${{ !cancelled() && !failure() && needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.mode == 'nightly' && needs.package-windows.result == 'success' && needs.sbom.result == 'success' }}
+    needs: [prepare, build, package-windows, sign-installers, sbom]
+    if: ${{ !cancelled() && !failure() && needs.prepare.outputs.publish == 'true' && needs.prepare.outputs.mode == 'nightly' && needs.package-windows.result == 'success' && needs.sign-installers.result != 'failure' && needs.sbom.result == 'success' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
