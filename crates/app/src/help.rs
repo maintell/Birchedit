@@ -23,12 +23,12 @@ pub const VERSION: &str = env!("BIRCHPAD_VERSION");
 pub const BUILD_CHANNEL: &str = env!("BIRCHPAD_CHANNEL");
 pub const COMMIT: Option<&str> = option_env!("BIRCHPAD_COMMIT");
 
-/// Birchpad's home page: its repository.
-pub const HOME_PAGE: &str = "https://github.com/SecurityTrip/Birchpad";
+/// This project's home page: its repository.
+pub const HOME_PAGE: &str = "https://github.com/maintell/Birchedit";
 /// The manual: the README, which says how to install and use Birchpad.
-pub const MANUAL: &str = "https://github.com/SecurityTrip/Birchpad#readme";
+pub const MANUAL: &str = "https://github.com/maintell/Birchedit#readme";
 /// Where users talk: the repository's discussions.
-pub const FORUM: &str = "https://github.com/SecurityTrip/Birchpad/discussions";
+pub const FORUM: &str = "https://github.com/maintell/Birchedit/discussions";
 
 pub fn register_commands(registry: &mut CommandRegistry) {
     registry.workspace("help.about", |_, (), window, cx| {

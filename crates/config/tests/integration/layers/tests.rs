@@ -113,7 +113,7 @@ fn invalid_policy_value_does_not_lock() {
         policy: table("updates.mode = 'sometimes'"),
         ..Sources::default()
     });
-    assert_eq!(resolved.settings.updates.mode, UpdateMode::Auto);
+    assert_eq!(resolved.settings.updates.mode, UpdateMode::Off);
     assert!(!resolved.is_locked("updates.mode"));
     assert_eq!(resolved.diagnostics.len(), 1);
 }

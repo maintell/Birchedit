@@ -42,16 +42,19 @@ Silicon, Linux (Ubuntu или Debian, под X11 и под Wayland). Windows н�
 
 ## Обновления
 
+- [ ] У свежей копии `updates.mode = "off"` и она не делает запросов (Help > Check for Updates
+      недоступен); включённые обновления проверяются
 - [ ] Help > Check for Updates считает прошлый выпуск актуальным и предлагает новый, как только
       он опубликован (каналы stable и nightly)
 - [ ] После публикации выпуск есть в подписанном манифесте обновлений (`update-manifest.yml`),
       а установленная прошлая версия с `updates.mode = "auto"` обновляется сама и запускается
       снова со своей сессией
-- [ ] С `updates.mode = "off"` ничего не уходит в сеть (Help > Check for Updates недоступен)
-- [ ] Проверка отправляет `POST` на `api.birchpad.ru` и получает тот же подписанный манифест,
-      что на GitHub; при заблокированном `api.birchpad.ru` она всё равно находит новый выпуск, с
-      GitHub; при `updates.statistics = false` тело запроса — `{}`, а `install-id` в
-      `state.toml` нет ([ADR 0064](adr/0064-update-api-and-install-statistics.md))
+- [ ] Проверка скачивает `birchpad-updates.json` из выпуска `updates` этого репозитория и
+      ничего больше: ни один запрос не несёт id, версии или платформы копии
+      ([ADR 0068](adr/0068-updates-from-this-repository.md)); зеркало из `updates.url`
+      читается вместо него
+- [ ] Манифест, подписанный другим ключом, отвергается, как и более старый, чем самый новый
+      виденный ([ADR 0020](adr/0020-signed-updates-and-nightly-builds.md))
 
 ## Методы ввода и клавиатуры
 

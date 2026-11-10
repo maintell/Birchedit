@@ -1,4 +1,4 @@
-//! The settings of Preferences > Updates: install statistics (ADR 0064).
+//! The settings of Preferences > Updates (ADR 0068).
 
 use birchpad_config::*;
 use toml::Table;
@@ -8,63 +8,64 @@ fn table(toml: &str) -> Option<Table> {
 }
 
 #[test]
-fn statistics_are_on_unless_turned_off() {
-    assert!(UpdateSettings::default().statistics);
-    assert!(Settings::default().updates.statistics);
-    // Other update settings given, statistics not: still on.
+fn updates_are_off_until_turned_on() {
+    // This build has no update service of its own: a check would fail closed, so none runs
+    // until the user turns updates on (ADR 0068).
+    assert_eq!(UpdateSettings::default().mode, UpdateMode::Off);
+    assert_eq!(Settings::default().updates.mode, UpdateMode::Off);
+    // Given, the mode holds.
     let settings: Settings = toml::from_str("[updates]\nmode = \"notify\"\n").unwrap();
-    assert!(settings.updates.statistics);
-    let settings: Settings = toml::from_str("[updates]\nstatistics = false\n").unwrap();
-    assert!(!settings.updates.statistics);
-    check_setting("updates.statistics", &toml::Value::Boolean(false)).unwrap();
-    // Not a boolean: refused, and the default stays.
-    for wrong in [toml::Value::String("false".into()), toml::Value::Integer(0)] {
-        assert!(
-            check_setting("updates.statistics", &wrong).is_err(),
-            "{wrong}"
-        );
+    assert_eq!(settings.updates.mode, UpdateMode::Notify);
+    let settings: Settings = toml::from_str("[updates]\nmode = \"auto\"\n").unwrap();
+    assert_eq!(settings.updates.mode, UpdateMode::Auto);
+    check_setting("updates.mode", &toml::Value::String("auto".into())).unwrap();
+    // Not a mode: refused, and the default stays.
+    for wrong in [
+        toml::Value::String("sometimes".into()),
+        toml::Value::Integer(0),
+    ] {
+        assert!(check_setting("updates.mode", &wrong).is_err(), "{wrong}");
     }
     let resolved = resolve(Sources {
-        user: table("updates.statistics = 'no'"),
+        user: table("updates.mode = 'sometimes'"),
         ..Sources::default()
     });
-    assert!(resolved.settings.updates.statistics);
+    assert_eq!(resolved.settings.updates.mode, UpdateMode::Off);
 }
 
 #[test]
-fn the_statistics_policy_wins_over_the_setting() {
+fn the_mode_policy_wins_over_the_setting() {
     let resolved = resolve(Sources {
-        machine: table("updates.statistics = true"),
-        user: table("updates.statistics = true"),
-        policy: table("updates.statistics = false"),
+        machine: table("updates.mode = \"auto\""),
+        user: table("updates.mode = \"auto\""),
+        policy: table("updates.mode = \"off\""),
         ..Sources::default()
     });
-    assert!(!resolved.settings.updates.statistics);
-    assert!(resolved.is_locked("updates.statistics"));
+    assert_eq!(resolved.settings.updates.mode, UpdateMode::Off);
+    assert!(resolved.is_locked("updates.mode"));
     // Without the policy the user's setting holds, and is not locked.
     let resolved = resolve(Sources {
-        user: table("updates.statistics = false"),
+        user: table("updates.mode = \"notify\""),
         ..Sources::default()
     });
-    assert!(!resolved.settings.updates.statistics);
-    assert!(!resolved.is_locked("updates.statistics"));
-    // The policy may turn them on too, over a user who turned them off.
-    let resolved = resolve(Sources {
-        user: table("updates.statistics = false"),
-        policy: table("updates.statistics = true"),
-        ..Sources::default()
-    });
-    assert!(resolved.settings.updates.statistics);
+    assert_eq!(resolved.settings.updates.mode, UpdateMode::Notify);
+    assert!(!resolved.is_locked("updates.mode"));
 }
 
 #[test]
-fn the_statistics_policy_is_a_dword_of_updates_statistics() {
-    let policy = POLICIES
-        .iter()
-        .find(|policy| policy.name == "UpdateStatistics")
-        .expect("listed, so that templates have it");
-    assert_eq!(policy.key, "updates.statistics");
-    assert_eq!(policy.kind, PolicyKind::Bool);
+fn the_update_policies_are_listed_with_their_keys() {
+    for (name, key, kind) in [
+        ("UpdateMode", "updates.mode", PolicyKind::Text),
+        ("UpdateChannel", "updates.channel", PolicyKind::Text),
+        ("UpdateUrl", "updates.url", PolicyKind::Text),
+    ] {
+        let policy = POLICIES
+            .iter()
+            .find(|policy| policy.name == name)
+            .unwrap_or_else(|| panic!("{name} is listed, so that templates have it"));
+        assert_eq!(policy.key, key, "{name}");
+        assert_eq!(policy.kind, kind, "{name}");
+    }
     // Names and keys stay unique.
     for (index, policy) in POLICIES.iter().enumerate() {
         assert!(

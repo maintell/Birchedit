@@ -1342,7 +1342,6 @@ preferences:
   search-results-one-entry-per-line: "Search results: one entry per line"
   searching: "Searching"
   selected-text-in-its-own-color: "Selected text in its own color"
-  send-install-statistics: "Send install statistics"
   server-command-line: "Command line"
   servers-by-language: "Servers by language"
   session-file-extension: "Session file extension"

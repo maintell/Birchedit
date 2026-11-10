@@ -28,7 +28,7 @@ use crate::{Transport, hex};
 
 /// The catalog Birchpad reads unless `network.catalog` names another.
 pub const DEFAULT_CATALOG: &str =
-    "https://raw.githubusercontent.com/SecurityTrip/Birchpad/main/packaging/catalog/catalog.json";
+    "https://raw.githubusercontent.com/maintell/Birchedit/main/packaging/catalog/catalog.json";
 /// The format of catalog this Birchpad reads.
 pub const FORMAT: u32 = 1;
 /// The largest catalog read, in bytes.

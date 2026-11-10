@@ -25,10 +25,4 @@ pub(super) const ENTRIES: &[Entry] = &[
             ("nightly", "Nightly"),
         ]),
     ),
-    entry(
-        "Updates",
-        "updates.statistics",
-        "Send install statistics",
-        Kind::Bool,
-    ),
 ];

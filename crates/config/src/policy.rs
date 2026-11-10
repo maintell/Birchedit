@@ -46,11 +46,6 @@ pub const POLICIES: &[PolicyDef] = &[
         kind: PolicyKind::Text,
     },
     PolicyDef {
-        name: "UpdateStatistics",
-        key: "updates.statistics",
-        kind: PolicyKind::Bool,
-    },
-    PolicyDef {
         name: "PluginInstall",
         key: "plugins.install",
         kind: PolicyKind::Text,

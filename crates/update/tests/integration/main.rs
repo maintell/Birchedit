@@ -1,9 +1,6 @@
 //! The crate's tests through its public interface, one module per part of `src`, in one
 //! test binary.
 
-#[path = "api_tests.rs"]
-mod api;
-
 #[path = "catalog/tests.rs"]
 mod catalog;
 
@@ -16,9 +13,6 @@ mod install_velopack_installer;
 
 #[path = "manifest/tests.rs"]
 mod manifest;
-
-#[path = "statistics/tests.rs"]
-mod statistics;
 
 #[path = "tests.rs"]
 mod lib_tests;

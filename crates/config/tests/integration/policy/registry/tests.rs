@@ -8,7 +8,7 @@ fn reads_typed_values() {
     let key = CURRENT_USER.create(&path).unwrap();
     key.set_string("UpdateMode", "off").unwrap();
     key.set_u32("CrashReports", 0).unwrap();
-    key.set_u32("UpdateStatistics", 0).unwrap();
+    key.set_u32("OnlineFeatures", 0).unwrap();
     key.set_multi_string("AllowedPlugins", &["compare", "json-tools"])
         .unwrap();
     key.set_string("BackupUnsaved", "not a dword").unwrap();
@@ -24,7 +24,7 @@ fn reads_typed_values() {
 
     let expected: Table = toml::from_str(
         "updates.mode = 'off'\n\
-                 updates.statistics = false\n\
+                 network.online-features = false\n\
                  diagnostics.crash-reports = false\n\
                  plugins.allowed = ['compare', 'json-tools']",
     )
@@ -44,19 +44,19 @@ fn any_dword_but_zero_turns_a_bool_policy_on() {
         std::process::id()
     );
     let key = CURRENT_USER.create(&path).unwrap();
-    key.set_u32("UpdateStatistics", u32::MAX).unwrap();
+    key.set_u32("OnlineFeatures", u32::MAX).unwrap();
     key.set_u32("CrashReports", 1).unwrap();
     // Text where a DWORD belongs: not read, and said so.
-    key.set_string("OnlineFeatures", "0").unwrap();
+    key.set_string("BackupUnsaved", "0").unwrap();
     drop(key);
     let (table, diagnostics) = user_registry_policies(&path);
     CURRENT_USER.remove_tree(&path).unwrap();
     let expected: Table =
-        toml::from_str("updates.statistics = true\ndiagnostics.crash-reports = true").unwrap();
+        toml::from_str("network.online-features = true\ndiagnostics.crash-reports = true").unwrap();
     assert_eq!(table, expected);
     assert_eq!(diagnostics.len(), 1);
     assert_eq!(
         diagnostics[0].key.as_deref(),
-        Some("network.online-features")
+        Some("session.backup-unsaved")
     );
 }

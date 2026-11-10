@@ -11,8 +11,8 @@ are done, releases build exactly as before, unsigned, with a warning in the log.
 - Turn on two-factor authentication on GitHub (SignPath Foundation requires it of every
   maintainer).
 - Apply at [signpath.org/apply](https://signpath.org/apply) with the repository
-  (`https://github.com/SecurityTrip/Birchpad`), the download page (its releases) and the code
-  signing policy (`https://github.com/SecurityTrip/Birchpad#code-signing-policy`). Worth
+  (`https://github.com/maintell/Birchedit`), the download page (its releases) and the code
+  signing policy (`https://github.com/maintell/Birchedit#code-signing-policy`). Worth
   mentioning: the installers are made by Velopack's `vpk` from our signed executable and carry
   Birchpad's metadata, and contain Velopack's `Update.exe` unsigned.
 

@@ -2,45 +2,29 @@
 
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default, rename_all = "kebab-case")]
 pub struct UpdateSettings {
     pub mode: UpdateMode,
     pub channel: UpdateChannel,
-    /// The signed update manifest to read instead of the official one, e.g. on an internal
+    /// The signed update manifest to read instead of this repository's, e.g. on an internal
     /// mirror; it must still be signed with a key Birchpad trusts.
     pub url: Option<String>,
     /// The proxy updates go through (Help > Set Updater Proxy...): `http://host:port`,
     /// `socks5://host:port` or `host:port`; empty for the one of `HTTPS_PROXY` or
     /// `ALL_PROXY`, or the system's on Windows.
     pub proxy: String,
-    /// Whether update checks through Birchpad's Update API say which copy of Birchpad asks, its
-    /// version, channel, platform and PlantUML (ADR 0064); without, they send nothing about it.
-    /// Updates from `url` never do.
-    pub statistics: bool,
-}
-
-impl Default for UpdateSettings {
-    fn default() -> Self {
-        Self {
-            mode: UpdateMode::default(),
-            channel: UpdateChannel::default(),
-            url: None,
-            proxy: String::new(),
-            statistics: true,
-        }
-    }
 }
 
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum UpdateMode {
     /// Never check for updates and never touch the network for them.
+    #[default]
     Off,
     /// Check and tell the user, but do not download.
     Notify,
     /// Download in the background and install on restart.
-    #[default]
     Auto,
 }
 

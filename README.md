@@ -35,7 +35,7 @@ their time, and Birchpad is named after them.
 
 ## Installing
 
-Downloads are on the [releases page](https://github.com/SecurityTrip/Birchpad/releases):
+Downloads are on the [releases page](https://github.com/maintell/Birchedit/releases):
 
 | File | For |
 |---|---|
@@ -53,7 +53,7 @@ Windows releases are not signed yet (see the [code signing policy](#code-signing
 Windows SmartScreen asks before the first start ("More info", "Run anyway"). macOS
 needs Birchpad.app opened once with Control-click > Open until the app is notarized. Each release
 lists SHA-256 checksums and carries GitHub build provenance (`gh attestation verify <file>
---repo SecurityTrip/Birchpad`).
+--repo maintell/Birchedit`).
 
 On Windows, the installer and the MSI add "Edit with Birchpad" to the Explorer's context menu
 of files (the MSI's `ExplorerMenu` feature can be left out: `ADDLOCAL=Main`); Preferences > Files
@@ -65,7 +65,7 @@ with > Change All.
 To uninstall, use Installed apps in Windows Settings for the installer and the MSI, or delete the
 folder of a portable copy.
 
-Nightly builds of the next version's branch (`v0.7.8` or `v0.8.0` after 0.7.7) are published as
+Nightly builds of the next version's branch (`v0.8.1` after 0.8.0) are published as
 pre-releases; set `updates.channel = "nightly"` to get them as updates.
 
 ## Code signing policy
@@ -77,11 +77,10 @@ SignPath, and stays switched off until Birchpad has a code signing certificate; 
 SHA-256 checksums and GitHub build provenance show that a download is what the release workflow
 built from this repository's source on GitHub-hosted runners.
 
-Privacy policy: Birchpad collects no personal data, and connects to the network only to check
-for and download updates, which can be turned off, and, when you ask, to install PlantUML,
-plugins and dictionaries. Update checks send install statistics (a random id of the copy, its
-version, channel, platform and PlantUML) unless `updates.statistics = false`; see
-[PRIVACY.md](PRIVACY.md).
+Privacy policy: Birchpad collects no personal data. It connects to the network to read its
+signed update manifest (once a day at most, and only once updates are turned on) and, when you
+ask, to install PlantUML, plugins and dictionaries. An update check sends nothing about your
+copy: no id, no statistics. See [PRIVACY.md](PRIVACY.md).
 
 ## Building
 
@@ -133,16 +132,18 @@ Put a file named `birchpad-portable.txt` next to the executable (the Windows and
 with it) and Birchpad keeps its settings and data in a `data` folder next to it. Administrator
 policies of the machine still apply.
 
-On its own, Birchpad uses the network only to check for updates: once a day, and when you pick
-Help > Check for Updates. It reads a manifest signed with the project's key and refuses any
-other, from Birchpad's update service (`api.birchpad.ru`) or, when that fails, from GitHub; the
-request carries the install statistics, or nothing with `updates.statistics = false`
-([ADR 0064](docs/adr/0064-update-api-and-install-statistics.md)); installed
-copies (the Windows installer) update themselves when Birchpad restarts, other copies show where
-to download the new version. With `updates.mode = "off"` (a setting or an administrator policy)
-Birchpad makes no update requests; `"notify"` announces new versions without downloading them.
-PlantUML, plugins from the online list and dictionaries are downloaded only when you ask, and
-not with `network.online-features = false`. See [ADR 0020](docs/adr/0020-signed-updates-and-nightly-builds.md) and the
+On its own, Birchpad uses the network only to check for updates, and only once updates are
+turned on: `updates.mode` is `"off"` by default, since this repository has published no
+releases of its own yet. Turned on (Preferences > Updates; a setting, or an administrator's
+policy), it reads the manifest of this repository's releases on GitHub once a day and when you
+pick Help > Check for Updates: a file signed with the project's key, and any other is refused
+([ADR 0068](docs/adr/0068-updates-from-this-repository.md)). The request names nothing of your
+copy, and nothing is sent back. `"notify"` announces new versions without downloading them;
+`"auto"`, in a copy installed with the Windows installer, downloads the package and installs it
+when Birchpad restarts; a mirror of the manifest (`updates.url`, an administrator's) is read
+instead when one is set. PlantUML, plugins from the online list and dictionaries are downloaded
+only when you ask, and not with `network.online-features = false`. See
+[ADR 0020](docs/adr/0020-signed-updates-and-nightly-builds.md) and the
 [privacy policy](PRIVACY.md).
 
 ## Repository layout
@@ -156,6 +157,7 @@ not with `network.online-features = false`. See [ADR 0020](docs/adr/0020-signed-
 | `crates/io` | Encoding detection and conversion, reading and safely saving files, searching them (Find in Files). No UI. |
 | `crates/view` | Layout of a document view in cells: tab stops, word wrap, visual rows, right-to-left text. No UI. |
 | `crates/syntax` | Languages and syntax trees: detection, tree-sitter parsing, highlighting, folding. No UI. |
+| `crates/theme` | Colors: the palette of a theme, Notepad++'s themes read from the user's copy, styles by syntax token. No UI. |
 | `crates/cli` | Notepad++-compatible command line and the single-instance hand-off. No UI. |
 | `crates/git` | Git through its command line: a file's text in HEAD, a line's blame, the changes of lines. No UI. |
 | `crates/lsp` | Language server client: the protocol, the server process, positions and URIs, the servers' answers as plain values. No UI. |
@@ -164,6 +166,8 @@ not with `network.online-features = false`. See [ADR 0020](docs/adr/0020-signed-
 | `crates/plugin` | Plugins as WebAssembly components (`wit/birchpad.wit`), Rhai scripts, the plugin manager. No UI. |
 | `crates/update` | Updates: the signed update manifest, channels, versions, installing (Velopack on Windows); the online catalog. No UI. |
 | `crates/release-tool` | `birchpad-release`: signing keys and the update manifest, for the release workflows. |
+| `crates/tree-sitter-plantuml` | The PlantUML grammar Birchpad parses diagrams with (ADR 0061). No UI. |
+| `crates/fuzz` | The checks of everything that reads input from outside, over their seeds (CONTRIBUTING.md, Tests). No UI. |
 | `crates/ui` | What the window's parts share: the command registry, the settings and state of the application, dialog buttons, messages to the user. |
 | `crates/editor` | The editor: the buffer, the editor view drawn and edited in GPUI, the active theme. |
 | `crates/menu-bar` | The menu bar drawn in the window on Windows and Linux, with Windows' keyboard access. |

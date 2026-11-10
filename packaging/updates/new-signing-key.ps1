@@ -9,7 +9,7 @@
 # Run from anywhere, in Windows PowerShell or PowerShell 7:
 #   powershell -ExecutionPolicy Bypass -File packaging\updates\new-signing-key.ps1 [-Repo owner/name]
 param(
-    [string]$Repo = "SecurityTrip/Birchpad",
+    [string]$Repo = "maintell/Birchedit",
     [string]$Environment = "update-signing"
 )
 $ErrorActionPreference = "Stop"

@@ -41,17 +41,19 @@ desktops are welcome but not required.
 
 ## Updates
 
+- [ ] A fresh copy has `updates.mode = "off"` and makes no request (Help > Check for Updates is
+      disabled); turned on, it checks
 - [ ] Help > Check for Updates finds the previous release up to date and offers the new one
       once it is published (stable and nightly channels)
 - [ ] After publishing, the release is in the signed update manifest (`update-manifest.yml`),
       and an installed previous version with `updates.mode = "auto"` updates itself and starts
       again with its session
-- [ ] With `updates.mode = "off"`, nothing goes to the network (Help > Check for Updates is
-      disabled)
-- [ ] The check posts to `api.birchpad.ru` and is answered with the same signed manifest as
-      GitHub's; with `api.birchpad.ru` blocked it still finds the new release, from GitHub; with
-      `updates.statistics = false` the body is `{}` and `install-id` is gone from `state.toml`
-      ([ADR 0064](adr/0064-update-api-and-install-statistics.md))
+- [ ] The check downloads `birchpad-updates.json` from this repository's `updates` release and
+      nothing else: no request of it carries an id, a version or a platform of the copy
+      ([ADR 0068](adr/0068-updates-from-this-repository.md)); a mirror set in `updates.url` is
+      read instead
+- [ ] A manifest signed with any other key is refused, and so is one older than the newest seen
+      ([ADR 0020](adr/0020-signed-updates-and-nightly-builds.md))
 
 ## Input methods and keyboards
 

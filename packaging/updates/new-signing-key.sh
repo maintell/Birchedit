@@ -3,7 +3,7 @@
 # repository's settings; see new-signing-key.ps1 and README.md next to this script. Usage:
 #   packaging/updates/new-signing-key.sh [owner/name]
 set -euo pipefail
-repo="${1:-SecurityTrip/Birchpad}"
+repo="${1:-maintell/Birchedit}"
 environment="update-signing"
 cd "$(dirname "$0")/../.."
 

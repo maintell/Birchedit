@@ -6,6 +6,29 @@ version's release notes from its section here.
 
 ## [Unreleased]
 
+### Changed
+
+- This tree is a fork of Birchpad, `maintell/Birchedit`, and what it downloads now comes from
+  here: the signed update manifest is the `birchpad-updates.json` asset of this repository's
+  `updates` release, and the rest of the addresses it had of the project it came from name this
+  repository too: Help > About and the manual and forum links, the online catalog
+  (`network.catalog`), the dictionary addresses in it, and the defaults of the scripts that make
+  a signing key ([ADR 0068](docs/adr/0068-updates-from-this-repository.md)).
+- Updates are off until they are turned on: `updates.mode` defaults to `off`. This repository
+  has published no release and built no trusted key yet, so a check could only refuse the
+  manifest it read and report an error. Turned on, a check downloads the manifest and sends
+  nothing; `updates.url` still names a mirror, read instead when an administrator sets one.
+
+### Removed
+
+- The Update API of the project this fork came from
+  (`https://api.birchpad.ru/v1/updates/check`), the install statistics it collected, the
+  `updates.statistics` setting and the `UpdateStatistics` policy, with their tests: a fork's
+  update checks would tell a service nobody here runs who is asking, and it would gain nothing
+  ([ADR 0068](docs/adr/0068-updates-from-this-repository.md)). An `install-id` an earlier build
+  wrote to `state.toml` stays there, unread, until the next save of the state. `birchpad-update`
+  no longer depends on `uuid`, its only use.
+
 ## [0.8.0] - 2026-11-09
 
 ### Added

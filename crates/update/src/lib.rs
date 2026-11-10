@@ -1,13 +1,14 @@
 //! Checking for Birchpad updates.
 //!
-//! The update server publishes a signed manifest ([`manifest`], ADR 0020) listing recent releases
-//! and their installer packages. [`check`] reads it from Birchpad's Update API ([`UPDATE_API`],
-//! ADR 0064), which answers with the same signed manifest and keeps the install statistics
-//! ([`statistics`]), or from GitHub ([`DEFAULT_MANIFEST`]) when the API fails; checks its
-//! signature against the keys compiled into Birchpad and its freshness, wherever it came from;
-//! and looks for a release newer than the running one on the configured channel. `updates.url`
-//! may point to a mirror of the manifest, which is then read alone, without statistics: the
+//! The release workflows publish a signed manifest ([`manifest`], ADR 0020) listing recent
+//! releases and their installer packages. [`check`] reads it from this project's releases on
+//! GitHub ([`DEFAULT_MANIFEST`]); checks its signature against the keys compiled into Birchpad
+//! and its freshness; and looks for a release newer than the running one on the configured
+//! channel. `updates.url` may point to a mirror of the manifest, which is then read instead: the
 //! signature, not the server, makes it trusted.
+//!
+//! A check downloads the manifest and posts nothing: no id, no version, no statistics
+//! (ADR 0068).
 //!
 //! [`check`] never touches the network when `updates.mode` is `off`.
 
@@ -16,7 +17,6 @@ pub mod component;
 pub mod install;
 mod keys;
 pub mod manifest;
-pub mod statistics;
 
 use std::fs::File;
 use std::io::{Read as _, Write as _};
@@ -31,14 +31,10 @@ use sha2::{Digest as _, Sha256};
 pub use ed25519_dalek::{SigningKey, VerifyingKey};
 pub use manifest::{Manifest, ManifestError, ManifestRelease, Package};
 
-/// The official update manifest: an asset of the `updates` release on GitHub, replaced by the
-/// release workflows.
+/// The update manifest: an asset of the `updates` release of this repository on GitHub, replaced
+/// by the release workflows (ADR 0068).
 pub const DEFAULT_MANIFEST: &str =
-    "https://github.com/SecurityTrip/Birchpad/releases/download/updates/birchpad-updates.json";
-
-/// Birchpad's Update API (ADR 0064, Update API v1): a `POST` of the install statistics, or of
-/// `{}`, answered with the signed manifest as published on GitHub, byte for byte.
-pub const UPDATE_API: &str = "https://api.birchpad.ru/v1/updates/check";
+    "https://github.com/maintell/Birchedit/releases/download/updates/birchpad-updates.json";
 
 /// Manifests larger than this are rejected.
 pub const MAX_MANIFEST_SIZE: u64 = 1024 * 1024;
@@ -73,8 +69,6 @@ pub enum Outcome {
 pub struct Checked {
     pub outcome: Outcome,
     pub timestamp: u64,
-    /// Why the Update API failed, when the manifest was read from GitHub instead: only to log.
-    pub api_error: Option<CheckError>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
@@ -99,21 +93,12 @@ pub struct CheckRequest<'a> {
     /// The timestamp of the newest manifest seen before, or the time of this build: older
     /// manifests are refused.
     pub newest_seen: u64,
-    /// What the Update API is told (`updates.statistics`); `None` sends `{}`.
-    pub statistics: Option<&'a statistics::Statistics>,
 }
 
 /// Fetches URLs. The application uses [`HttpTransport`]; tests use fakes.
 pub trait Transport: Send + Sync {
     /// The body of `url`, at most [`MAX_MANIFEST_SIZE`] bytes.
     fn get(&self, url: &str) -> Result<Vec<u8>, String>;
-
-    /// The body of the answer to a `POST` of the JSON `body` to `url`, at most
-    /// [`MAX_MANIFEST_SIZE`] bytes; an answer other than `200 OK` is an error. A transport that
-    /// does not post (the tests' fakes) fails, and checks then read the manifest from GitHub.
-    fn post_json(&self, url: &str, _body: &[u8]) -> Result<Vec<u8>, String> {
-        Err(format!("cannot post to {url}"))
-    }
 
     /// Downloads `url` into `to`, at most `limit` bytes, reporting the bytes received so far.
     fn download(
@@ -166,33 +151,21 @@ pub fn mirror(settings: &UpdateSettings) -> Option<&str> {
         .filter(|url| !url.is_empty())
 }
 
-/// Where checks read the manifest: `updates.url` if set, Birchpad's Update API otherwise (and
-/// GitHub when it fails).
+/// Where checks read the manifest: `updates.url` if set, this project's releases on GitHub
+/// otherwise.
 pub fn manifest_url(settings: &UpdateSettings) -> &str {
-    mirror(settings).unwrap_or(UPDATE_API)
+    mirror(settings).unwrap_or(DEFAULT_MANIFEST)
 }
 
-/// Looks for a release newer than the running one on the configured channel: in the manifest
-/// of `updates.url` when it is set; otherwise in the one the Update API answers with, or, when
-/// it fails (no answer, a status other than 200, a manifest that does not verify), in the one
-/// on GitHub, whose error is the check's when it fails too.
+/// Looks for a release newer than the running one on the configured channel: in the manifest of
+/// `updates.url` when it is set, in the one of this project's releases on GitHub otherwise.
 pub fn check(request: &CheckRequest, transport: &dyn Transport) -> Result<Checked, CheckError> {
     if request.settings.mode == UpdateMode::Off {
         return Err(CheckError::Disabled);
     }
-    if let Some(url) = mirror(request.settings) {
-        let manifest = read(request, url, transport.get(url))?;
-        return Ok(outcome(request, &manifest, None));
-    }
-    let body = statistics::request_body(request.statistics);
-    let api = read(request, UPDATE_API, transport.post_json(UPDATE_API, &body));
-    match api {
-        Ok(manifest) => Ok(outcome(request, &manifest, None)),
-        Err(api_error) => {
-            let manifest = read(request, DEFAULT_MANIFEST, transport.get(DEFAULT_MANIFEST))?;
-            Ok(outcome(request, &manifest, Some(api_error)))
-        }
-    }
+    let url = manifest_url(request.settings);
+    let manifest = read(request, url, transport.get(url))?;
+    Ok(outcome(request, &manifest))
 }
 
 /// The manifest `url` answered with, `answer`, once verified as every manifest is.
@@ -214,7 +187,7 @@ fn read(
 }
 
 /// What `manifest` says to the running version.
-fn outcome(request: &CheckRequest, manifest: &Manifest, api_error: Option<CheckError>) -> Checked {
+fn outcome(request: &CheckRequest, manifest: &Manifest) -> Checked {
     let newest = manifest.newest(request.settings.channel);
     let outcome = match newest {
         Some(release) if release.version > *request.current && is_web_page(&release.page) => {
@@ -234,7 +207,6 @@ fn outcome(request: &CheckRequest, manifest: &Manifest, api_error: Option<CheckE
     Checked {
         outcome,
         timestamp: manifest.timestamp,
-        api_error,
     }
 }
 
@@ -443,25 +415,6 @@ impl Transport for HttpTransport {
             .header("Accept", "application/json, application/octet-stream")
             .call()
             .map_err(|error| error.to_string())?;
-        self.read_manifest(&mut response)
-    }
-
-    fn post_json(&self, url: &str, body: &[u8]) -> Result<Vec<u8>, String> {
-        // Not redirected: the answer is the service's own, or none.
-        let mut response = self
-            .agent
-            .post(url)
-            .config()
-            .max_redirects(0)
-            .build()
-            .header("Content-Type", "application/json")
-            .header("Accept", "application/json")
-            .send(body)
-            .map_err(|error| error.to_string())?;
-        let status = response.status().as_u16();
-        if status != 200 {
-            return Err(format!("{url} answered {status}"));
-        }
         self.read_manifest(&mut response)
     }
 

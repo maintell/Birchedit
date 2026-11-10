@@ -1,6 +1,7 @@
 # ADR 0064: Update API and install statistics
 
-- Status: accepted
+- Status: superseded by [ADR 0068](0068-updates-from-this-repository.md), which removes the
+  Update API and the statistics from this fork; kept as the record of what Birchpad did
 - Date: 2026-11-08
 - Builds on [ADR 0020](0020-signed-updates-and-nightly-builds.md) (the signed manifest, which
   stays the only thing an update is trusted by).

@@ -1354,7 +1354,6 @@ preferences:
   search-results-one-entry-per-line: "Результаты поиска: одна запись на строку"
   searching: "Поиск"
   selected-text-in-its-own-color: "Выделенный текст своим цветом"
-  send-install-statistics: "Отправлять статистику установок"
   server-command-line: "Командная строка"
   servers-by-language: "Серверы по языкам"
   session-file-extension: "Расширение файлов сеанса"

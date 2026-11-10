@@ -90,7 +90,7 @@ fn values_show_as_text() {
     );
     assert_eq!(
         display(current_value(&settings, "updates.mode").as_ref()),
-        "auto"
+        "off"
     );
     assert_eq!(display(None), "");
     assert_eq!(
