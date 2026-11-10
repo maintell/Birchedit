@@ -53,7 +53,7 @@ macro_rules! plantuml {
 
 /// PlantUML (its EPL build, with ELK, and the Xtext library ELK needs, ADR 0063) and a Java
 /// runtime made for them with `jlink` (Eclipse Temurin), built by
-/// `.github/workflows/plantuml.yml` (the release `plantuml-1.2026.9-3`).
+/// the PlantUML jobs of `.github/workflows/ci.yml` (the release `plantuml-1.2026.9-3`).
 pub const PLANTUML: Component = Component {
     name: "plantuml",
     version: "1.2026.9-3",

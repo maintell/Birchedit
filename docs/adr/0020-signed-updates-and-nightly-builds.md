@@ -1,6 +1,6 @@
 # ADR 0020: Signed updates, nightly builds and the per-user installer
 
-- Status: accepted, extended by [ADR 0064](0064-update-api-and-install-statistics.md)
+- Status: accepted, its workflows now jobs of `.github/workflows/ci.yml` ([ADR 0069](0069-one-ci-workflow.md)); extended by [ADR 0064](0064-update-api-and-install-statistics.md)
   (the manifest read from Birchpad's Update API first, GitHub when it fails), whose API
   [ADR 0068](0068-updates-from-this-repository.md) removes
 - Date: 2026-10-05

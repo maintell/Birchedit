@@ -46,7 +46,7 @@ desktops are welcome but not required.
       disabled); turned on, it checks
 - [ ] Help > Check for Updates finds the previous release up to date and offers the new one
       once it is published (stable and nightly channels)
-- [ ] After publishing, the release is in the signed update manifest (`update-manifest.yml`),
+- [ ] After publishing, the release is in the signed update manifest (the `manifest` job),
       and an installed previous version with `updates.mode = "auto"` updates itself and starts
       again with its session
 - [ ] The check downloads `birchpad-updates.json` from this repository's `updates` release and

@@ -1,6 +1,6 @@
 # ADR 0021: Authenticode signing with SignPath Foundation
 
-- Status: accepted, on hold
+- Status: accepted, its jobs now those of `.github/workflows/ci.yml` ([ADR 0069](0069-one-ci-workflow.md)), on hold
 - Date: 2026-10-06
 
 **On hold (2026-10-06).** SignPath Foundation did not take Birchpad for now. The workflow
