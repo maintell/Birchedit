@@ -6,6 +6,8 @@ version's release notes from its section here.
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-11
+
 ### Added
 
 - An interface in Chinese (简体中文, `zh`): `crates/i18n/locales/zh.yaml` translates every key of

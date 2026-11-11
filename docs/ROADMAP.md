@@ -1159,3 +1159,13 @@ Not planned into a release yet.
 - MSI for pre-release versions and for ARM64 *(from Phase 1)*
 
 See [ADR 0005](adr/0005-distribution-and-updates.md).
+
+## This fork's releases
+
+This checkout develops the fork `maintell/Birchedit` from Birchpad 0.8.0: the phases above are
+the plan of the project it came from, and what this fork changes is in
+[`CHANGELOG.md`](../CHANGELOG.md), ADR 0068 and ADR 0069.
+
+- [x] Release 0.9.0: updates read from this repository's `updates` release, without the Update
+      API or the install statistics (ADR 0068); one CI workflow, one run per event (ADR 0069);
+      an interface in Chinese (简体中文); local builds keep no incremental state
