@@ -6,6 +6,8 @@ version's release notes from its section here.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-11
+
 ### Removed
 
 - The built-in grammars of PHP, Haskell and Scala, the three largest grammar crates: their
