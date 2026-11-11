@@ -6,6 +6,15 @@ version's release notes from its section here.
 
 ## [Unreleased]
 
+### Removed
+
+- The built-in grammars of PHP, Haskell and Scala, the three largest grammar crates: their
+  parser tables were 8.5 MB of the Windows executable (109.99 MB → 101.45 MB). Files of those
+  languages open as plain text and they are no longer listed in the Language menu; their tag
+  queries, samples and snapshots went with them, and so did the PHP API file and the rule that
+  closed its tags. SQL keeps its grammar, `tree-sitter-sequel` being the SQL parser, and the
+  remaining 47 languages are unchanged.
+
 ## [0.9.0] - 2026-11-11
 
 ### Added

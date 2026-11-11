@@ -118,7 +118,7 @@ impl CallTip {
 /// elements that have no closing tag).
 pub(crate) fn tag_language(id: &str) -> Option<bool> {
     match id {
-        "html" | "php" | "asp" | "vue" | "svelte" => Some(true),
+        "html" | "asp" | "vue" | "svelte" => Some(true),
         "xml" | "svg" | "xsl" | "xslt" => Some(false),
         _ => None,
     }
@@ -140,7 +140,6 @@ pub const BUNDLED: &[(&str, &str)] = &[
     ("html", include_str!("../api/html.xml")),
     ("java", include_str!("../api/java.xml")),
     ("javascript", include_str!("../api/javascript.xml")),
-    ("php", include_str!("../api/php.xml")),
     ("powershell", include_str!("../api/powershell.xml")),
     ("python", include_str!("../api/python.xml")),
     ("rust", include_str!("../api/rust.xml")),

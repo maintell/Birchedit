@@ -48,7 +48,6 @@ fn detects_by_name_extension_and_first_line() {
         Some("xml")
     );
     assert_eq!(detected("page", "<!DOCTYPE html>"), Some("html"));
-    assert_eq!(detected("index", "<?php echo 1;"), Some("php"));
     // The name wins over the first line.
     assert_eq!(detected("build.py", "#!/bin/sh"), Some("python"));
     assert_eq!(by_id("CPP").map(|language| language.name), Some("C++"));

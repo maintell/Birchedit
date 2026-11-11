@@ -286,18 +286,6 @@ pub static LANGUAGES: &[Language] = &[
         )
     },
     Language {
-        interpreters: &["runhaskell", "runghc"],
-        ..lang(
-            "haskell",
-            "Haskell",
-            "Haskell source file",
-            &["hs", "hsc"],
-            (Some("--"), Some(("{-", "-}"))),
-            grammar!(tree_sitter_haskell::LANGUAGE),
-            &[tree_sitter_haskell::HIGHLIGHTS_QUERY],
-        )
-    },
-    Language {
         aliases: &["terraform"],
         ..lang(
             "hcl",
@@ -477,20 +465,6 @@ pub static LANGUAGES: &[Language] = &[
         )
     },
     Language {
-        injections: &[include_str!("../queries/php-injections.scm")],
-        interpreters: &["php"],
-        first_line: &["<?php"],
-        ..lang(
-            "php",
-            "PHP",
-            "PHP Hypertext Preprocessor file",
-            &["php", "php3", "php4", "php5", "phps", "phpt", "phtml"],
-            C_LIKE,
-            grammar!(tree_sitter_php::LANGUAGE_PHP),
-            &[tree_sitter_php::HIGHLIGHTS_QUERY],
-        )
-    },
-    Language {
         aliases: &["puml", "uml"],
         first_line: &["@startuml"],
         ..lang(
@@ -593,18 +567,6 @@ pub static LANGUAGES: &[Language] = &[
         grammar!(tree_sitter_rust::LANGUAGE),
         &[tree_sitter_rust::HIGHLIGHTS_QUERY],
     ),
-    Language {
-        interpreters: &["scala"],
-        ..lang(
-            "scala",
-            "Scala",
-            "Scala source file",
-            &["scala", "sc", "sbt"],
-            C_LIKE,
-            grammar!(tree_sitter_scala::LANGUAGE),
-            &[tree_sitter_scala::HIGHLIGHTS_QUERY],
-        )
-    },
     lang(
         "solidity",
         "Solidity",

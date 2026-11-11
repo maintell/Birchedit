@@ -46,11 +46,6 @@ const EXEMPT: &[(&str, &str, &str)] = &[
         "constant",
         "`const` lines are in the grammar, not in NASM or GAS",
     ),
-    (
-        "scala",
-        "tag.attribute",
-        "XML literals are Scala 2 only; the sample is Scala 3",
-    ),
 ];
 
 /// The colors `source`, a file named `path`, shows; and the colors its language's query can
@@ -127,7 +122,12 @@ fn every_color_of_every_query_shows_in_its_sample() {
         .map(|entry| entry.unwrap().path())
         .collect();
     paths.sort();
-    assert!(paths.len() >= 50, "only {} samples", paths.len());
+    assert!(
+        paths.len() >= birchpad_syntax::LANGUAGES.len(),
+        "only {} samples for {} languages",
+        paths.len(),
+        birchpad_syntax::LANGUAGES.len()
+    );
     let mut missing = Vec::new();
     for path in paths {
         let source = std::fs::read_to_string(&path).unwrap();

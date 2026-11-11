@@ -29,7 +29,8 @@ fn every_tags_query_compiles() {
             assert!(outline_query_error(language).is_some(), "{}", language.id);
         }
     }
-    assert!(outlined >= 28, "{outlined}");
+    // PHP, Haskell and Scala are not built in: 26 languages have a tags query.
+    assert!(outlined >= 26, "{outlined}");
 }
 
 #[test]

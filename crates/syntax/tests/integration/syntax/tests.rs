@@ -167,17 +167,6 @@ fn markdown_highlights_code_blocks_and_inline_syntax() {
 }
 
 #[test]
-fn php_is_html_around_its_code() {
-    let source = "<div class=\"a\"><?php echo $x; ?></div>\n";
-    let text = Rope::from_str(source);
-    let syntax = parse("php", &text);
-    assert_eq!(layer_summary(&syntax, &text)[0].0, "html");
-    let spans = named(&syntax.highlights(&text, 0..text.len()), source);
-    assert!(spans.contains(&("div".into(), "tag")), "{spans:?}");
-    assert!(spans.contains(&("echo".into(), "keyword")), "{spans:?}");
-}
-
-#[test]
 fn layers_follow_edits_and_keep_unchanged_trees() {
     let mut text =
         Rope::from_str("```js\nlet a = 1;\n```\n\ntext\n\n```python\ndef f(): pass\n```\n");
