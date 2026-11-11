@@ -32,7 +32,7 @@ cli:
   open-the-window-this-many-pixels-from-the-top: "Open the window this many pixels from the top"
   print-the-files-on-the-default-printer-and-quit-if-started-for-that: "Print the files on the default printer, and quit if started for that"
   say-how-long-the-files-took-to-open: "Say how long the files took to open"
-  show-the-interface-in-that-language-this-time-lde-lru: "Show the interface in that language this time (-Lde, -Lru)"
+  show-the-interface-in-that-language-this-time-lde-lru: "Show the interface in that language this time (-Lde, -Lru, -Lzh)"
   show-these-options: "Show these options"
   start-a-window-of-its-own-instead-of-handing-the-files-to-the-running-one: "Start a window of its own instead of handing the files to the running one"
   start-in-the-system-tray: "Start in the system tray"

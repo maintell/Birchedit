@@ -30,7 +30,7 @@ cli:
   open-the-window-this-many-pixels-from-the-top: "Das Fenster so viele Pixel vom oberen Rand öffnen"
   print-the-files-on-the-default-printer-and-quit-if-started-for-that: "Die Dateien auf dem Standarddrucker drucken und beenden, wenn dafür gestartet"
   say-how-long-the-files-took-to-open: "Sagen, wie lange das Öffnen der Dateien dauerte"
-  show-the-interface-in-that-language-this-time-lde-lru: "Die Oberfläche diesmal in dieser Sprache zeigen (-Lde, -Lru)"
+  show-the-interface-in-that-language-this-time-lde-lru: "Die Oberfläche diesmal in dieser Sprache zeigen (-Lde, -Lru, -Lzh)"
   show-these-options: "Diese Optionen zeigen"
   start-a-window-of-its-own-instead-of-handing-the-files-to-the-running-one: "Ein eigenes Fenster starten, statt die Dateien dem laufenden zu übergeben"
   start-in-the-system-tray: "Im Infobereich starten"

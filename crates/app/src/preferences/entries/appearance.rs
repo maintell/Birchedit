@@ -12,6 +12,7 @@ pub(super) const ENTRIES: &[Entry] = &[
             ("en", "English"),
             ("de", "Deutsch"),
             ("ru", "Русский"),
+            ("zh", "简体中文"),
         ]),
     ),
     entry(

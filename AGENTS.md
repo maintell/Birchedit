@@ -80,7 +80,7 @@ cargo run -p birchpad                     # the application
   the other in the same commit, and each links the other at the top. ADRs and `CHANGELOG.md`
   are English only.
 - Point text rather than code: every user-visible string is a key in `crates/i18n/locales/`
-  (`en.yaml`, `de.yaml`, `ru.yaml`), used as `t!("key")`. A key a translation lacks falls back
+  (`en.yaml`, `de.yaml`, `ru.yaml`, `zh.yaml`), used as `t!("key")`. A key a translation lacks falls back
   to English, so a new string needs at least `en.yaml`; add `de` and `ru` in the same change.
 - Behaviour that contradicts an existing ADR needs a new ADR, not a silent divergence
   (`docs/adr/0068-…` is the newest).

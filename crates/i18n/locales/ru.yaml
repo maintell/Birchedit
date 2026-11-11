@@ -31,7 +31,7 @@ cli:
   open-the-window-this-many-pixels-from-the-top: "Открыть окно на столько пикселей от верхнего края"
   print-the-files-on-the-default-printer-and-quit-if-started-for-that: "Напечатать файлы на принтере по умолчанию и выйти, если запущен ради этого"
   say-how-long-the-files-took-to-open: "Сообщить, сколько времени открывались файлы"
-  show-the-interface-in-that-language-this-time-lde-lru: "Показать интерфейс на этом языке в этот раз (-Lde, -Lru)"
+  show-the-interface-in-that-language-this-time-lde-lru: "Показать интерфейс на этом языке в этот раз (-Lde, -Lru, -Lzh)"
   show-these-options: "Показать эти параметры"
   start-a-window-of-its-own-instead-of-handing-the-files-to-the-running-one: "Открыть своё окно, а не передавать файлы запущенному"
   start-in-the-system-tray: "Запуститься в области уведомлений"

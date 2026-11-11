@@ -6,6 +6,14 @@ version's release notes from its section here.
 
 ## [Unreleased]
 
+### Added
+
+- An interface in Chinese (简体中文, `zh`): `crates/i18n/locales/zh.yaml` translates every key of
+  `en.yaml`, with its named arguments; Preferences > Appearance lists it, `-Lzh` shows it for
+  one run, and `auto` follows a Chinese system, since `zh-CN` and `zh_CN.UTF-8` name the
+  language `zh` (ADR 0033). Chinese has one plural form, so every count of a counted noun reads
+  the same.
+
 ### Changed
 
 - This tree is a fork of Birchpad, `maintell/Birchedit`, and what it downloads now comes from

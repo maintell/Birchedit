@@ -64,6 +64,27 @@ fn german_is_an_interface_language() {
 }
 
 #[test]
+fn chinese_is_an_interface_language() {
+    let _language = choosing_language();
+    assert_eq!(resolve("zh", None), "zh");
+    // The system's `zh-CN`, and a setting written the same way: the language part.
+    assert_eq!(resolve("auto", Some("zh-CN")), "zh");
+    assert_eq!(resolve("auto", Some("zh_CN.UTF-8")), "zh");
+    assert_eq!(resolve("zh-CN", None), "zh");
+    set_language("zh");
+    assert_eq!(get("menu.file"), "文件");
+    // Chinese has one plural form: the same text for every count, which `plural_form` reaches
+    // through `other` for all but one.
+    assert_eq!(plural("plural.files", 1), "1 个文件");
+    assert_eq!(plural("plural.files", 0), "0 个文件");
+    assert_eq!(plural("plural.files", 2), "2 个文件");
+    assert_eq!(count(0, "match", "matches"), "0 处匹配");
+    assert_eq!(count(1, "match", "matches"), "1 处匹配");
+    assert_eq!(count(5, "match", "matches"), "5 处匹配");
+    set_language("en");
+}
+
+#[test]
 fn a_notepad_translation_comes_first() {
     let _language = choosing_language();
     set_language("ru");

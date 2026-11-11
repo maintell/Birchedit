@@ -20,13 +20,19 @@ use std::sync::{Arc, LazyLock};
 use yaml_rust2::{Yaml, YamlLoader};
 
 /// The interface languages, by code, with their names in themselves.
-pub const LANGUAGES: &[(&str, &str)] = &[("en", "English"), ("de", "Deutsch"), ("ru", "Русский")];
+pub const LANGUAGES: &[(&str, &str)] = &[
+    ("en", "English"),
+    ("de", "Deutsch"),
+    ("ru", "Русский"),
+    ("zh", "简体中文"),
+];
 
 /// The locales built in, by language code; English first.
 pub const LOCALES: &[(&str, &str)] = &[
     ("en", include_str!("../locales/en.yaml")),
     ("de", include_str!("../locales/de.yaml")),
     ("ru", include_str!("../locales/ru.yaml")),
+    ("zh", include_str!("../locales/zh.yaml")),
 ];
 
 /// `t!("key")`, or `t!("key", name = value, ...)` for a text with `{name}` in it.

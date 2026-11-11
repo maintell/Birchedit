@@ -9,7 +9,7 @@ A fast, extensible, cross-platform text editor in the spirit of Notepad++, writt
 > **Status: alpha (0.8).** A Notepad++-like editor: tabs and split views, encodings, syntax
 > highlighting for 50 languages with folding, multi-cursor and column editing, bookmarks,
 > sessions that keep unsaved work, Find in Files, macros, themes, an interface in English,
-> German and Russian, plugins as WebAssembly components and scripts in Rhai, with Compare, JSON and XML
+> German, Russian and Chinese, plugins as WebAssembly components and scripts in Rhai, with Compare, JSON and XML
 > tools, a hex view, Markdown and PlantUML previews and spell checking built in, and, for code,
 > language servers, Git's changes in the margin and a terminal. Full parity
 > with Notepad++ comes next. Expect rough edges. See the [roadmap](docs/ROADMAP.md) and the
@@ -122,7 +122,7 @@ text into a new document. The options of the window (`-notabbar`, `-alwaysOnTop`
 system tray on Windows and macOS, and minimized on Linux, which has no tray icon yet;
 `-pluginMessage` hands its text to the plugins that ask for it;
 `-qn` (Notepad++'s own easter eggs) is accepted and does nothing. `-L` (the one option whose case
-counts) shows the interface in a language this time (`-Lde`, `-Lru`). To stand in for Windows
+counts) shows the interface in a language this time (`-Lde`, `-Lru`, `-Lzh`). To stand in for Windows
 Notepad, `-notepadStyleCmdline -z` skips Notepad's path and reads the rest as one file name with
 spaces.
 
