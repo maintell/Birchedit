@@ -5,7 +5,7 @@ compresses it into rules an agent can follow without reading the whole tree firs
 
 ## What this tree is
 
-Birchpad: a Notepad++-like text editor in Rust on GPUI (Windows, macOS, Linux; 26 crates, ~90k
+Birchpad: a Notepad++-like text editor in Rust on GPUI (Windows, macOS, Linux; 27 crates, ~90k
 lines of source, ~58k of tests). This checkout is a fork, `maintell/Birchedit`, developed from
 `SecurityTrip/Birchpad`; `origin` is the fork. Updates, links and the online catalog point at
 this repository (ADR 0068).

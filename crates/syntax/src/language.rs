@@ -25,7 +25,16 @@ pub struct Language {
     pub aliases: &'static [&'static str],
     pub line_comment: Option<&'static str>,
     pub block_comment: Option<(&'static str, &'static str)>,
-    pub(crate) grammar: fn() -> tree_sitter::Language,
+    /// The grammar, when it is linked in; None in a build that loads the grammars from
+    /// irchpad-grammars at run time (crate::dynamic, ADR 0070).
+    #[cfg_attr(
+        feature = "dynamic-grammars",
+        allow(
+            dead_code,
+            reason = "a build that loads the grammars reads none of them here"
+        )
+    )]
+    pub(crate) grammar: Option<fn() -> tree_sitter::Language>,
     /// Highlight queries, concatenated in order; later patterns win over earlier ones.
     pub(crate) highlights: &'static [&'static str],
     /// Where other languages are embedded (scripts in HTML, code blocks in Markdown):
@@ -41,13 +50,24 @@ impl PartialEq for Language {
 
 impl Eq for Language {}
 
+/// The grammar of a language, in a build that links the grammars in.
+#[cfg(not(feature = "dynamic-grammars"))]
 macro_rules! grammar {
     ($language:expr) => {{
         fn grammar() -> tree_sitter::Language {
             $language.into()
         }
-        grammar
+        Some(grammar as fn() -> tree_sitter::Language)
     }};
+}
+
+/// A build that loads the grammars from irchpad-grammars names none of them here: the
+/// grammar of a language is found by its id at run time (crate::dynamic).
+#[cfg(feature = "dynamic-grammars")]
+macro_rules! grammar {
+    ($language:expr) => {
+        None
+    };
 }
 
 const C_LIKE: (Option<&str>, Option<(&str, &str)>) = (Some("//"), Some(("/*", "*/")));
@@ -59,7 +79,7 @@ const fn lang(
     description: &'static str,
     extensions: &'static [&'static str],
     comments: (Option<&'static str>, Option<(&'static str, &'static str)>),
-    grammar: fn() -> tree_sitter::Language,
+    grammar: Option<fn() -> tree_sitter::Language>,
     highlights: &'static [&'static str],
 ) -> Language {
     Language {

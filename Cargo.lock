@@ -592,7 +592,7 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
 name = "birchpad"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "birchpad",
@@ -723,7 +723,7 @@ dependencies = [
 
 [[package]]
 name = "birchpad-fuzz"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "base64 0.23.1",
  "birchpad-cli",
@@ -753,6 +753,61 @@ dependencies = [
  "birchpad-i18n",
  "tempfile",
  "thiserror 2.0.21",
+]
+
+[[package]]
+name = "birchpad-grammars"
+version = "0.11.0"
+dependencies = [
+ "birchpad-tree-sitter-plantuml",
+ "tree-sitter-asm",
+ "tree-sitter-bash",
+ "tree-sitter-batch",
+ "tree-sitter-c",
+ "tree-sitter-c-sharp",
+ "tree-sitter-cmake",
+ "tree-sitter-containerfile",
+ "tree-sitter-cpp",
+ "tree-sitter-css",
+ "tree-sitter-dart",
+ "tree-sitter-diff",
+ "tree-sitter-elixir",
+ "tree-sitter-erlang",
+ "tree-sitter-go",
+ "tree-sitter-graphql",
+ "tree-sitter-groovy",
+ "tree-sitter-hcl",
+ "tree-sitter-html",
+ "tree-sitter-ini",
+ "tree-sitter-java",
+ "tree-sitter-javascript",
+ "tree-sitter-jsdoc",
+ "tree-sitter-json",
+ "tree-sitter-kotlin-sg",
+ "tree-sitter-lua",
+ "tree-sitter-make",
+ "tree-sitter-md",
+ "tree-sitter-nginx",
+ "tree-sitter-nix",
+ "tree-sitter-objc",
+ "tree-sitter-pascal",
+ "tree-sitter-powershell",
+ "tree-sitter-properties",
+ "tree-sitter-proto",
+ "tree-sitter-python",
+ "tree-sitter-r",
+ "tree-sitter-regex",
+ "tree-sitter-ruby",
+ "tree-sitter-rust",
+ "tree-sitter-sequel",
+ "tree-sitter-solidity",
+ "tree-sitter-svelte-ng",
+ "tree-sitter-swift",
+ "tree-sitter-toml-ng",
+ "tree-sitter-typescript",
+ "tree-sitter-xml",
+ "tree-sitter-yaml",
+ "tree-sitter-zig",
 ]
 
 [[package]]
@@ -840,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "birchpad-release-tool"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "anyhow",
  "birchpad-update",
@@ -870,11 +925,12 @@ dependencies = [
 
 [[package]]
 name = "birchpad-syntax"
-version = "0.10.0"
+version = "0.11.0"
 dependencies = [
  "birchpad-core",
  "birchpad-i18n",
  "birchpad-tree-sitter-plantuml",
+ "libloading",
  "proptest",
  "ropey",
  "roxmltree 0.21.2",
@@ -904,6 +960,7 @@ dependencies = [
  "tree-sitter-jsdoc",
  "tree-sitter-json",
  "tree-sitter-kotlin-sg",
+ "tree-sitter-language",
  "tree-sitter-lua",
  "tree-sitter-make",
  "tree-sitter-md",

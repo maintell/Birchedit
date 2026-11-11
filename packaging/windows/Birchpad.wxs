@@ -36,6 +36,8 @@
           <Shortcut Name="Birchpad" Directory="ProgramMenuFolder" Advertise="yes"
                     Icon="birchpad.ico" WorkingDirectory="INSTALLFOLDER" />
         </File>
+        <!-- The tree-sitter grammars, in a library the executable loads at run time (ADR 0070). -->
+        <File Source="$(var.BinDir)\birchpad_grammars.dll" />
       </Component>
 
       <!-- "Edit with Birchpad" in the Explorer's context menu of files, for every user, as

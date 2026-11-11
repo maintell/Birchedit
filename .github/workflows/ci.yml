@@ -735,7 +735,9 @@ jobs:
         run: |
           IFS=',' read -ra targets <<< "${{ matrix.targets }}"
           for target in "${targets[@]}"; do
-            cargo build --release --locked -p birchpad --target "$target"
+            # The grammars are a library of their own, loaded at run time (ADR 0070).
+            cargo build --release --locked -p birchpad --features dynamic-grammars --target "$target"
+            cargo build --release --locked -p birchpad-grammars --target "$target"
           done
 
       # Windows packages are made from the signed executable, in the package-windows job.
@@ -744,7 +746,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: exe-${{ matrix.name }}
-          path: target/${{ matrix.targets }}/release/birchpad.exe
+          path: |
+            target/${{ matrix.targets }}/release/birchpad.exe
+            target/${{ matrix.targets }}/release/birchpad_grammars.dll
           if-no-files-found: error
 
       - name: Package (Linux)
@@ -754,6 +758,7 @@ jobs:
           name="birchpad-$VERSION-${{ matrix.name }}"
           mkdir -p "dist/$name"
           cp "target/${{ matrix.targets }}/release/birchpad" "dist/$name/"
+          cp "target/${{ matrix.targets }}/release/libbirchpad_grammars.so" "dist/$name/"
           cp packaging/portable/birchpad-portable.txt LICENSE-MIT LICENSE-APACHE README.md "dist/$name/"
           # For the applications menu: see the README's Installing section.
           cp packaging/linux/io.github.securitytrip.birchpad.desktop "dist/$name/"
@@ -773,6 +778,10 @@ jobs:
           lipo -create -output "$app/Contents/MacOS/birchpad" \
             target/aarch64-apple-darwin/release/birchpad \
             target/x86_64-apple-darwin/release/birchpad
+          # One library for both architectures, in the folder the executable loads it from.
+          lipo -create -output "$app/Contents/MacOS/libbirchpad_grammars.dylib" \
+            target/aarch64-apple-darwin/release/libbirchpad_grammars.dylib \
+            target/x86_64-apple-darwin/release/libbirchpad_grammars.dylib
           sed "s/@VERSION@/$VERSION/g" packaging/macos/Info.plist > "$app/Contents/Info.plist"
           cp LICENSE-MIT LICENSE-APACHE README.md "dist/$name/"
           # Ad-hoc signature only. Developer ID signing and notarization (ADR 0005) replace it.
@@ -872,11 +881,14 @@ jobs:
             name="birchpad-$VERSION-$platform"
             mkdir -p "zip/$name"
             cp "$exe" packaging/portable/birchpad-portable.txt LICENSE-MIT LICENSE-APACHE README.md "zip/$name/"
+            # The grammars, in the library the executable loads them from (ADR 0070).
+            cp "executables/exe-$platform/birchpad_grammars.dll" "zip/$name/"
             # Windows' own bsdtar writes zip files (Git Bash's tar does not).
             (cd zip && /c/Windows/System32/tar.exe -a -c -f "../dist/$name.zip" "$name")
 
             rm -rf velopack && mkdir -p velopack/in velopack/out
             cp "$exe" LICENSE-MIT LICENSE-APACHE README.md velopack/in/
+            cp "executables/exe-$platform/birchpad_grammars.dll" velopack/in/
             # Full packages only: the signed manifest lists no deltas (ADR 0020).
             vpk pack --packId Birchpad --packVersion "$VERSION" --packTitle Birchpad \
               --packAuthors "The Birchpad Contributors" --packDir velopack/in \

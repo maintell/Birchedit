@@ -146,7 +146,7 @@ fn compile(language: &'static Language) -> Result<Tags, String> {
     if sources.is_empty() {
         return Err(format!("{} has no tags query", language.name));
     }
-    let grammar = (language.grammar)();
+    let grammar = crate::syntax::grammar_of(language)?;
     // Directives such as `#strip!` and `#select-adjacent!` shape documentation comments, which
     // the outline does not show: their patterns stay, the directives are ignored.
     let query = Query::new(&grammar, &lua_matches_to_regex(&sources.join("\n")))

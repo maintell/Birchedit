@@ -157,6 +157,7 @@ only when you ask, and not with `network.online-features = false`. See
 | `crates/io` | Encoding detection and conversion, reading and safely saving files, searching them (Find in Files). No UI. |
 | `crates/view` | Layout of a document view in cells: tab stops, word wrap, visual rows, right-to-left text. No UI. |
 | `crates/syntax` | Languages and syntax trees: detection, tree-sitter parsing, highlighting, folding. No UI. |
+| `crates/grammars` | The tree-sitter grammars in a library the executable loads at run time (ADR 0070). No UI. |
 | `crates/theme` | Colors: the palette of a theme, Notepad++'s themes read from the user's copy, styles by syntax token. No UI. |
 | `crates/cli` | Notepad++-compatible command line and the single-instance hand-off. No UI. |
 | `crates/git` | Git through its command line: a file's text in HEAD, a line's blame, the changes of lines. No UI. |

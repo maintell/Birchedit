@@ -6,6 +6,18 @@ version's release notes from its section here.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-11
+
+### Changed
+
+- The tree-sitter grammars live in a library of their own, `birchpad-grammars`, which the
+  executable loads at run time (ADR 0070): the binary keeps the languages' names, extensions
+  and queries, and asks the library for a grammar the first time a document of that language is
+  parsed. Release builds set the `dynamic-grammars` feature; tests and fuzzing link the grammars
+  as before, so `cargo test` needs nothing built first. Every package carries the library (the
+  portable ZIPs, the Windows installer and MSI, the macOS bundle), and a build without it opens
+  documents as plain text and says so once on standard error.
+
 ## [0.10.0] - 2026-11-11
 
 ### Removed

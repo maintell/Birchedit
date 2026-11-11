@@ -4,6 +4,8 @@
 //! No UI dependencies.
 
 mod brackets;
+#[cfg(feature = "dynamic-grammars")]
+mod dynamic;
 mod folds;
 mod highlight;
 mod language;

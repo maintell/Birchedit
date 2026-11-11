@@ -46,6 +46,10 @@ toml.workspace = true
 trash = "5"
 
 [features]
+# The tree-sitter grammars come from the birchpad-grammars library next to the
+# executable instead of the binary (ADR 0070); release builds turn it on, so that the
+# executable is about half the size.
+dynamic-grammars = ["birchpad-syntax/dynamic-grammars"]
 # Runs the script named by BIRCHPAD_E2E_SCRIPT once started, for the end-to-end tests
 # (`cargo test -p birchpad --features e2e --test e2e`). Release builds leave it out.
 e2e = ["birchpad-search-results/test-support"]

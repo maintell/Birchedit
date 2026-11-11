@@ -105,7 +105,7 @@ pub fn config(language: &'static Language) -> ConfigResult {
 }
 
 fn compile(language: &'static Language) -> ConfigResult {
-    let grammar = (language.grammar)();
+    let grammar = grammar_of(language)?;
     let highlights = query(&grammar, language.highlights)
         .map_err(|error| format!("highlight query of {}: {error}", language.name))?;
     let capture_highlights = highlights
@@ -129,6 +129,20 @@ fn compile(language: &'static Language) -> ConfigResult {
     }))
 }
 
+/// The grammar of `language`: linked in, or asked of `birchpad-grammars`.
+#[cfg(not(feature = "dynamic-grammars"))]
+pub(crate) fn grammar_of(language: &'static Language) -> Result<tree_sitter::Language, String> {
+    language
+        .grammar
+        .map(|grammar| grammar())
+        .ok_or_else(|| format!("{} has no grammar", language.name))
+}
+
+/// The grammar of `language`, from the library next to the executable.
+#[cfg(feature = "dynamic-grammars")]
+pub(crate) fn grammar_of(language: &'static Language) -> Result<tree_sitter::Language, String> {
+    crate::dynamic::grammar(language.id)
+}
 /// Compiles query sources written for Neovim as well as for tree-sitter's own tools: Lua
 /// patterns (`#lua-match?`) become regular expressions, and patterns with predicates nothing
 /// here evaluates (`#has-ancestor?`) are left out rather than matching too much.

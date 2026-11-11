@@ -1,7 +1,7 @@
 [package]
 name = "birchpad-syntax"
 description = "Languages and syntax trees for Birchpad: detection, tree-sitter parsing, highlighting, folding. No UI."
-version = "0.10.0"
+version = "0.11.0"
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
@@ -9,62 +9,70 @@ repository.workspace = true
 authors.workspace = true
 
 [dependencies]
-birchpad-i18n.workspace = true
 birchpad-core.workspace = true
+birchpad-i18n.workspace = true
 birchpad-tree-sitter-plantuml.workspace = true
 roxmltree = "0.21"
 ropey.workspace = true
 thiserror.workspace = true
-tree-sitter = "0.27"
+tree-sitter.workspace = true
+tree-sitter-asm.workspace = true
+tree-sitter-bash.workspace = true
+tree-sitter-batch.workspace = true
+tree-sitter-c.workspace = true
+tree-sitter-c-sharp.workspace = true
+tree-sitter-cmake.workspace = true
+tree-sitter-containerfile.workspace = true
+tree-sitter-cpp.workspace = true
+tree-sitter-css.workspace = true
+tree-sitter-dart.workspace = true
+tree-sitter-diff.workspace = true
+tree-sitter-elixir.workspace = true
+tree-sitter-erlang.workspace = true
+tree-sitter-go.workspace = true
+tree-sitter-graphql.workspace = true
+tree-sitter-groovy.workspace = true
+tree-sitter-hcl.workspace = true
+tree-sitter-html.workspace = true
+tree-sitter-ini.workspace = true
+tree-sitter-java.workspace = true
+tree-sitter-javascript.workspace = true
+tree-sitter-jsdoc.workspace = true
+tree-sitter-json.workspace = true
+tree-sitter-kotlin-sg.workspace = true
+tree-sitter-lua.workspace = true
+tree-sitter-make.workspace = true
+tree-sitter-md.workspace = true
+tree-sitter-nginx.workspace = true
+tree-sitter-nix.workspace = true
+tree-sitter-objc.workspace = true
+tree-sitter-pascal.workspace = true
+tree-sitter-powershell.workspace = true
+tree-sitter-properties.workspace = true
+tree-sitter-proto.workspace = true
+tree-sitter-python.workspace = true
+tree-sitter-r.workspace = true
+tree-sitter-regex.workspace = true
+tree-sitter-ruby.workspace = true
+tree-sitter-rust.workspace = true
+tree-sitter-sequel.workspace = true
+tree-sitter-solidity.workspace = true
+tree-sitter-svelte-ng.workspace = true
+tree-sitter-swift.workspace = true
+tree-sitter-toml-ng.workspace = true
+tree-sitter-typescript.workspace = true
+tree-sitter-xml.workspace = true
+tree-sitter-yaml.workspace = true
+tree-sitter-zig.workspace = true
+# The library that answers with the grammars, for a build that does not link them.
+libloading = { version = "0.8", optional = true }
+tree-sitter-language = { version = "0.1", optional = true }
 
-tree-sitter-asm = "0.24"
-tree-sitter-bash = "0.25"
-tree-sitter-batch = "0.11"
-tree-sitter-c = "0.24"
-tree-sitter-c-sharp = "0.23"
-tree-sitter-cmake = "0.7"
-tree-sitter-containerfile = "0.9"
-tree-sitter-cpp = "0.23"
-tree-sitter-css = "0.25"
-tree-sitter-dart = "0.3"
-tree-sitter-diff = "0.1"
-tree-sitter-elixir = "0.3"
-tree-sitter-erlang = "0.21"
-tree-sitter-go = "0.25"
-tree-sitter-graphql = "0.3"
-tree-sitter-groovy = "0.1"
-tree-sitter-hcl = "1.1"
-tree-sitter-html = "0.23"
-tree-sitter-ini = "1.4"
-tree-sitter-java = "0.23"
-tree-sitter-javascript = "0.25"
-tree-sitter-jsdoc = "0.25"
-tree-sitter-json = "0.24"
-tree-sitter-kotlin-sg = "0.4"
-tree-sitter-lua = "0.5"
-tree-sitter-make = "1.1"
-tree-sitter-md = "0.5"
-tree-sitter-nginx = "1.0"
-tree-sitter-nix = "0.3"
-tree-sitter-objc = "3.0"
-tree-sitter-pascal = "0.10"
-tree-sitter-powershell = "0.26"
-tree-sitter-properties = "0.3"
-tree-sitter-proto = "0.6"
-tree-sitter-python = "0.25"
-tree-sitter-r = "1.3"
-tree-sitter-regex = "0.25"
-tree-sitter-ruby = "0.23"
-tree-sitter-rust = "0.24"
-tree-sitter-sequel = "0.3"
-tree-sitter-solidity = "1.2"
-tree-sitter-svelte-ng = "1.0"
-tree-sitter-swift = "0.7"
-tree-sitter-toml-ng = "0.7"
-tree-sitter-typescript = "0.23"
-tree-sitter-xml = "0.7"
-tree-sitter-yaml = "0.7"
-tree-sitter-zig = "1.1"
+[features]
+# The grammars come from `birchpad-grammars` next to the executable rather than from the binary
+# (ADR 0070). The application's release builds turn it on; tests and fuzzing link them, so that
+# a unit test needs no library built first.
+dynamic-grammars = ["dep:libloading", "dep:tree-sitter-language"]
 
 [dev-dependencies]
 proptest.workspace = true

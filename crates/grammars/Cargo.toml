@@ -1,0 +1,67 @@
+[package]
+name = "birchpad-grammars"
+description = "Birchpad's tree-sitter grammars in a library of their own, loaded at run time (ADR 0070). No UI."
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors.workspace = true
+
+[lib]
+# A library the application loads; no crate links it, the executable asks for it at run time.
+crate-type = ["cdylib"]
+
+[dependencies]
+birchpad-tree-sitter-plantuml.workspace = true
+tree-sitter-asm.workspace = true
+tree-sitter-bash.workspace = true
+tree-sitter-batch.workspace = true
+tree-sitter-c.workspace = true
+tree-sitter-c-sharp.workspace = true
+tree-sitter-cmake.workspace = true
+tree-sitter-containerfile.workspace = true
+tree-sitter-cpp.workspace = true
+tree-sitter-css.workspace = true
+tree-sitter-dart.workspace = true
+tree-sitter-diff.workspace = true
+tree-sitter-elixir.workspace = true
+tree-sitter-erlang.workspace = true
+tree-sitter-go.workspace = true
+tree-sitter-graphql.workspace = true
+tree-sitter-groovy.workspace = true
+tree-sitter-hcl.workspace = true
+tree-sitter-html.workspace = true
+tree-sitter-ini.workspace = true
+tree-sitter-java.workspace = true
+tree-sitter-javascript.workspace = true
+tree-sitter-jsdoc.workspace = true
+tree-sitter-json.workspace = true
+tree-sitter-kotlin-sg.workspace = true
+tree-sitter-lua.workspace = true
+tree-sitter-make.workspace = true
+tree-sitter-md.workspace = true
+tree-sitter-nginx.workspace = true
+tree-sitter-nix.workspace = true
+tree-sitter-objc.workspace = true
+tree-sitter-pascal.workspace = true
+tree-sitter-powershell.workspace = true
+tree-sitter-properties.workspace = true
+tree-sitter-proto.workspace = true
+tree-sitter-python.workspace = true
+tree-sitter-r.workspace = true
+tree-sitter-regex.workspace = true
+tree-sitter-ruby.workspace = true
+tree-sitter-rust.workspace = true
+tree-sitter-sequel.workspace = true
+tree-sitter-solidity.workspace = true
+tree-sitter-svelte-ng.workspace = true
+tree-sitter-swift.workspace = true
+tree-sitter-toml-ng.workspace = true
+tree-sitter-typescript.workspace = true
+tree-sitter-xml.workspace = true
+tree-sitter-yaml.workspace = true
+tree-sitter-zig.workspace = true
+
+[lints]
+workspace = true
