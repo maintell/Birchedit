@@ -37,6 +37,12 @@ document of that language is parsed.
 - The library is looked for next to the executable, under the platform's name for a `cdylib`
   (`birchpad_grammars.dll`, `libbirchpad_grammars.so`, `libbirchpad_grammars.dylib`), and stays
   loaded: the grammar functions point into it.
+- **A language may come as a pack of its own**: built with `--no-default-features --features
+  <grammar>`, `birchpad-grammars` is that grammar alone, and the executable looks for
+  `<id>.dll`, `<id>.so` or `<id>.dylib` in the `grammars` folder of its data folder first, then
+  in a `grammars` folder beside itself, before asking the library of all grammars. A pack a
+  user adds is found at the next start; one that does not hold the language is passed over,
+  with a line on standard error.
 - Every package carries it: the portable ZIPs, the per-user installer (Velopack packs the
   folder it is given), the MSI (`Birchpad.wxs` names the file) and the macOS bundle, where the
   universal library is `lipo`'d beside the binary in `Contents/MacOS`.

@@ -190,6 +190,12 @@ pub fn run() {
                 cx,
             );
             commands::init(user_keymap.as_deref(), cx);
+            // The grammar packs of a build whose grammars are a library (ADR 0070): the ones a
+            // user adds live with the settings, next to the data.
+            #[cfg(feature = "dynamic-grammars")]
+            if let Some(data) = AppState::global(cx).paths.user_data.clone() {
+                birchpad_syntax::set_pack_folder(data.join("grammars"));
+            }
             cx.on_window_closed(|cx, _| {
                 if cx.windows().is_empty() {
                     cx.quit();

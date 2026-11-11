@@ -1,6 +1,6 @@
 [package]
 name = "birchpad-grammars"
-description = "Birchpad's tree-sitter grammars in a library of their own, loaded at run time (ADR 0070). No UI."
+description = "Birchpad's tree-sitter grammars in libraries of their own, loaded at run time (ADR 0070). No UI."
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -13,55 +13,110 @@ authors.workspace = true
 crate-type = ["cdylib"]
 
 [dependencies]
-birchpad-tree-sitter-plantuml.workspace = true
-tree-sitter-asm.workspace = true
-tree-sitter-bash.workspace = true
-tree-sitter-batch.workspace = true
-tree-sitter-c.workspace = true
-tree-sitter-c-sharp.workspace = true
-tree-sitter-cmake.workspace = true
-tree-sitter-containerfile.workspace = true
-tree-sitter-cpp.workspace = true
-tree-sitter-css.workspace = true
-tree-sitter-dart.workspace = true
-tree-sitter-diff.workspace = true
-tree-sitter-elixir.workspace = true
-tree-sitter-erlang.workspace = true
-tree-sitter-go.workspace = true
-tree-sitter-graphql.workspace = true
-tree-sitter-groovy.workspace = true
-tree-sitter-hcl.workspace = true
-tree-sitter-html.workspace = true
-tree-sitter-ini.workspace = true
-tree-sitter-java.workspace = true
-tree-sitter-javascript.workspace = true
-tree-sitter-jsdoc.workspace = true
-tree-sitter-json.workspace = true
-tree-sitter-kotlin-sg.workspace = true
-tree-sitter-lua.workspace = true
-tree-sitter-make.workspace = true
-tree-sitter-md.workspace = true
-tree-sitter-nginx.workspace = true
-tree-sitter-nix.workspace = true
-tree-sitter-objc.workspace = true
-tree-sitter-pascal.workspace = true
-tree-sitter-powershell.workspace = true
-tree-sitter-properties.workspace = true
-tree-sitter-proto.workspace = true
-tree-sitter-python.workspace = true
-tree-sitter-r.workspace = true
-tree-sitter-regex.workspace = true
-tree-sitter-ruby.workspace = true
-tree-sitter-rust.workspace = true
-tree-sitter-sequel.workspace = true
-tree-sitter-solidity.workspace = true
-tree-sitter-svelte-ng.workspace = true
-tree-sitter-swift.workspace = true
-tree-sitter-toml-ng.workspace = true
-tree-sitter-typescript.workspace = true
-tree-sitter-xml.workspace = true
-tree-sitter-yaml.workspace = true
-tree-sitter-zig.workspace = true
+birchpad-tree-sitter-plantuml = { workspace = true, optional = true }
+tree-sitter-asm = { workspace = true, optional = true }
+tree-sitter-bash = { workspace = true, optional = true }
+tree-sitter-batch = { workspace = true, optional = true }
+tree-sitter-c = { workspace = true, optional = true }
+tree-sitter-c-sharp = { workspace = true, optional = true }
+tree-sitter-cmake = { workspace = true, optional = true }
+tree-sitter-containerfile = { workspace = true, optional = true }
+tree-sitter-cpp = { workspace = true, optional = true }
+tree-sitter-css = { workspace = true, optional = true }
+tree-sitter-dart = { workspace = true, optional = true }
+tree-sitter-diff = { workspace = true, optional = true }
+tree-sitter-elixir = { workspace = true, optional = true }
+tree-sitter-erlang = { workspace = true, optional = true }
+tree-sitter-go = { workspace = true, optional = true }
+tree-sitter-graphql = { workspace = true, optional = true }
+tree-sitter-groovy = { workspace = true, optional = true }
+tree-sitter-hcl = { workspace = true, optional = true }
+tree-sitter-html = { workspace = true, optional = true }
+tree-sitter-ini = { workspace = true, optional = true }
+tree-sitter-java = { workspace = true, optional = true }
+tree-sitter-javascript = { workspace = true, optional = true }
+tree-sitter-jsdoc = { workspace = true, optional = true }
+tree-sitter-json = { workspace = true, optional = true }
+tree-sitter-kotlin-sg = { workspace = true, optional = true }
+tree-sitter-lua = { workspace = true, optional = true }
+tree-sitter-make = { workspace = true, optional = true }
+tree-sitter-md = { workspace = true, optional = true }
+tree-sitter-nginx = { workspace = true, optional = true }
+tree-sitter-nix = { workspace = true, optional = true }
+tree-sitter-objc = { workspace = true, optional = true }
+tree-sitter-pascal = { workspace = true, optional = true }
+tree-sitter-powershell = { workspace = true, optional = true }
+tree-sitter-properties = { workspace = true, optional = true }
+tree-sitter-proto = { workspace = true, optional = true }
+tree-sitter-python = { workspace = true, optional = true }
+tree-sitter-r = { workspace = true, optional = true }
+tree-sitter-regex = { workspace = true, optional = true }
+tree-sitter-ruby = { workspace = true, optional = true }
+tree-sitter-rust = { workspace = true, optional = true }
+tree-sitter-sequel = { workspace = true, optional = true }
+tree-sitter-solidity = { workspace = true, optional = true }
+tree-sitter-svelte-ng = { workspace = true, optional = true }
+tree-sitter-swift = { workspace = true, optional = true }
+tree-sitter-toml-ng = { workspace = true, optional = true }
+tree-sitter-typescript = { workspace = true, optional = true }
+tree-sitter-xml = { workspace = true, optional = true }
+tree-sitter-yaml = { workspace = true, optional = true }
+tree-sitter-zig = { workspace = true, optional = true }
+
+[features]
+default = ["all"]
+# Every grammar: the one library a default build makes.
+all = ["birchpad-tree-sitter-plantuml", "tree-sitter-asm", "tree-sitter-bash", "tree-sitter-batch", "tree-sitter-c", "tree-sitter-c-sharp", "tree-sitter-cmake", "tree-sitter-containerfile", "tree-sitter-cpp", "tree-sitter-css", "tree-sitter-dart", "tree-sitter-diff", "tree-sitter-elixir", "tree-sitter-erlang", "tree-sitter-go", "tree-sitter-graphql", "tree-sitter-groovy", "tree-sitter-hcl", "tree-sitter-html", "tree-sitter-ini", "tree-sitter-java", "tree-sitter-javascript", "tree-sitter-jsdoc", "tree-sitter-json", "tree-sitter-kotlin-sg", "tree-sitter-lua", "tree-sitter-make", "tree-sitter-md", "tree-sitter-nginx", "tree-sitter-nix", "tree-sitter-objc", "tree-sitter-pascal", "tree-sitter-powershell", "tree-sitter-properties", "tree-sitter-proto", "tree-sitter-python", "tree-sitter-r", "tree-sitter-regex", "tree-sitter-ruby", "tree-sitter-rust", "tree-sitter-sequel", "tree-sitter-solidity", "tree-sitter-svelte-ng", "tree-sitter-swift", "tree-sitter-toml-ng", "tree-sitter-typescript", "tree-sitter-xml", "tree-sitter-yaml", "tree-sitter-zig"]
+# One grammar crate at a time, for a pack of the languages it holds.
+birchpad-tree-sitter-plantuml = ["dep:birchpad-tree-sitter-plantuml"]
+tree-sitter-asm = ["dep:tree-sitter-asm"]
+tree-sitter-bash = ["dep:tree-sitter-bash"]
+tree-sitter-batch = ["dep:tree-sitter-batch"]
+tree-sitter-c = ["dep:tree-sitter-c"]
+tree-sitter-c-sharp = ["dep:tree-sitter-c-sharp"]
+tree-sitter-cmake = ["dep:tree-sitter-cmake"]
+tree-sitter-containerfile = ["dep:tree-sitter-containerfile"]
+tree-sitter-cpp = ["dep:tree-sitter-cpp"]
+tree-sitter-css = ["dep:tree-sitter-css"]
+tree-sitter-dart = ["dep:tree-sitter-dart"]
+tree-sitter-diff = ["dep:tree-sitter-diff"]
+tree-sitter-elixir = ["dep:tree-sitter-elixir"]
+tree-sitter-erlang = ["dep:tree-sitter-erlang"]
+tree-sitter-go = ["dep:tree-sitter-go"]
+tree-sitter-graphql = ["dep:tree-sitter-graphql"]
+tree-sitter-groovy = ["dep:tree-sitter-groovy"]
+tree-sitter-hcl = ["dep:tree-sitter-hcl"]
+tree-sitter-html = ["dep:tree-sitter-html"]
+tree-sitter-ini = ["dep:tree-sitter-ini"]
+tree-sitter-java = ["dep:tree-sitter-java"]
+tree-sitter-javascript = ["dep:tree-sitter-javascript"]
+tree-sitter-jsdoc = ["dep:tree-sitter-jsdoc"]
+tree-sitter-json = ["dep:tree-sitter-json"]
+tree-sitter-kotlin-sg = ["dep:tree-sitter-kotlin-sg"]
+tree-sitter-lua = ["dep:tree-sitter-lua"]
+tree-sitter-make = ["dep:tree-sitter-make"]
+tree-sitter-md = ["dep:tree-sitter-md"]
+tree-sitter-nginx = ["dep:tree-sitter-nginx"]
+tree-sitter-nix = ["dep:tree-sitter-nix"]
+tree-sitter-objc = ["dep:tree-sitter-objc"]
+tree-sitter-pascal = ["dep:tree-sitter-pascal"]
+tree-sitter-powershell = ["dep:tree-sitter-powershell"]
+tree-sitter-properties = ["dep:tree-sitter-properties"]
+tree-sitter-proto = ["dep:tree-sitter-proto"]
+tree-sitter-python = ["dep:tree-sitter-python"]
+tree-sitter-r = ["dep:tree-sitter-r"]
+tree-sitter-regex = ["dep:tree-sitter-regex"]
+tree-sitter-ruby = ["dep:tree-sitter-ruby"]
+tree-sitter-rust = ["dep:tree-sitter-rust"]
+tree-sitter-sequel = ["dep:tree-sitter-sequel"]
+tree-sitter-solidity = ["dep:tree-sitter-solidity"]
+tree-sitter-svelte-ng = ["dep:tree-sitter-svelte-ng"]
+tree-sitter-swift = ["dep:tree-sitter-swift"]
+tree-sitter-toml-ng = ["dep:tree-sitter-toml-ng"]
+tree-sitter-typescript = ["dep:tree-sitter-typescript"]
+tree-sitter-xml = ["dep:tree-sitter-xml"]
+tree-sitter-yaml = ["dep:tree-sitter-yaml"]
+tree-sitter-zig = ["dep:tree-sitter-zig"]
 
 [lints]
 workspace = true

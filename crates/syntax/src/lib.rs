@@ -16,6 +16,8 @@ mod syntax;
 mod udl;
 
 pub use brackets::{BracketMatch, matching_bracket};
+#[cfg(feature = "dynamic-grammars")]
+pub use dynamic::set_pack_folder;
 pub use folds::{fold_ranges, indent_fold_ranges};
 pub use highlight::{HIGHLIGHT_NAMES, Highlight, resolve};
 pub use language::{LANGUAGES, Language, all as all_languages, by_id, detect, injected};
