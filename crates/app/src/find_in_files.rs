@@ -101,7 +101,7 @@ async fn list(
     this: &WeakEntity<Workspace>,
     request: &Request,
     cancel: &Arc<AtomicBool>,
-    what: &'static str,
+    what: &str,
     cx: &mut AsyncApp,
 ) -> Option<Vec<PathBuf>> {
     let (listing, stop) = (request.clone(), cancel.clone());
@@ -115,9 +115,18 @@ async fn list(
         Err(error) => {
             let root = request.root.display();
             let message = match error.kind() {
-                io::ErrorKind::NotFound => format!("{what}: {root} does not exist"),
-                io::ErrorKind::NotADirectory => format!("{what}: {root} is not a folder"),
-                _ => format!("{what}: cannot read {root}: {error}"),
+                io::ErrorKind::NotFound => {
+                    t!("find-in-files.does-not-exist", what = what, root = root)
+                }
+                io::ErrorKind::NotADirectory => {
+                    t!("find-in-files.not-a-folder", what = what, root = root)
+                }
+                _ => t!(
+                    "find-in-files.cannot-read",
+                    what = what,
+                    root = root,
+                    error = error
+                ),
             };
             this.update(cx, |this, cx| {
                 this.finish_files(cx);
@@ -146,13 +155,21 @@ impl Workspace {
             bar.folder,
         );
         if directory.is_empty() {
-            self.report(Some(format!("{what}: choose a folder")), true, cx);
+            self.report(
+                Some(t!("find-in-files.choose-a-folder", what = what)),
+                true,
+                cx,
+            );
             return None;
         }
         let filters = match Filters::parse(&filters_text) {
             Ok(filters) => filters,
             Err(error) => {
-                self.report(Some(format!("{what}: {error}")), true, cx);
+                self.report(
+                    Some(t!("find-in-files.failed", what = what, error = error)),
+                    true,
+                    cx,
+                );
                 return None;
             }
         };
@@ -160,12 +177,19 @@ impl Workspace {
         // Checked before anything is asked or started; listing reports what fails later.
         let problem = match std::fs::metadata(&root) {
             Ok(metadata) if metadata.is_dir() => None,
-            Ok(_) => Some("is not a folder"),
-            Err(error) if error.kind() == io::ErrorKind::NotFound => Some("does not exist"),
+            Ok(_) => Some(t!(
+                "find-in-files.not-a-folder",
+                what = what,
+                root = root.display()
+            )),
+            Err(error) if error.kind() == io::ErrorKind::NotFound => Some(t!(
+                "find-in-files.does-not-exist",
+                what = what,
+                root = root.display()
+            )),
             Err(_) => None,
         };
-        if let Some(problem) = problem {
-            let message = format!("{what}: {} {problem}", root.display());
+        if let Some(message) = problem {
             self.report(Some(message), true, cx);
             return None;
         }
@@ -282,23 +306,23 @@ impl Workspace {
 
     /// Find All in the files of the folder: their matching lines go to the search results.
     pub fn find_in_files(&mut self, window: &mut Window, cx: &mut Context<Self>) {
-        const WHAT: &str = "Find in Files";
+        let what = t!("find.find-in-files");
         if self.files_running(cx) {
             return;
         }
         let Some((searcher, query)) = self.searcher(cx) else {
             return;
         };
-        let Some(request) = self.files_request(WHAT, window, cx) else {
+        let Some(request) = self.files_request(&what, window, cx) else {
             return;
         };
-        self.search_files(WHAT, searcher, query, FileSource::Listing(request), cx);
+        self.search_files(&what, searcher, query, FileSource::Listing(request), cx);
     }
 
     /// Search > Find in Projects: Find All in the files of the project panels chosen in the
     /// panel, read from their workspace files.
     pub fn find_in_projects(&mut self, cx: &mut Context<Self>) {
-        const WHAT: &str = "Find in Projects";
+        let what = t!("find.find-in-projects");
         if self.files_running(cx) {
             return;
         }
@@ -321,7 +345,11 @@ impl Workspace {
                     }
                 }
                 Err(error) => {
-                    self.report(Some(format!("{WHAT}: {error}")), true, cx);
+                    self.report(
+                        Some(t!("find-in-files.failed", what = what, error = error)),
+                        true,
+                        cx,
+                    );
                     return;
                 }
             }
@@ -330,19 +358,21 @@ impl Workspace {
             self.report(Some(t!("find-in-files.no-project-files")), true, cx);
             return;
         }
-        self.search_files(WHAT, searcher, query, FileSource::Files(files), cx);
+        self.search_files(&what, searcher, query, FileSource::Files(files), cx);
     }
 
     /// Searches the files of `source` (open documents as they are in their tabs) and shows
     /// what it finds in the search results.
     fn search_files(
         &mut self,
-        what: &'static str,
+        what: &str,
         searcher: Searcher,
         query: Query,
         source: FileSource,
         cx: &mut Context<Self>,
     ) {
+        // The message prefixes outlive this call: they are moved into the work below.
+        let what = what.to_owned();
         let mut open = self.open_files(cx);
         // Preferences > Searching > Find in Files: Ignore unsaved changes.
         if AppState::global(cx)
@@ -363,11 +393,11 @@ impl Workspace {
             .collect();
         let ansi = AppState::global(cx).ansi;
         let cancel = self.start_files(cx);
-        self.report(Some(format!("{what}: listing files...")), false, cx);
+        self.report(Some(t!("find-in-files.listing", what = what)), false, cx);
         cx.spawn(async move |this, cx| {
             let files = match source {
                 FileSource::Listing(request) => {
-                    let Some(files) = list(&this, &request, &cancel, what, cx).await else {
+                    let Some(files) = list(&this, &request, &cancel, &what, cx).await else {
                         return;
                     };
                     files
@@ -404,7 +434,12 @@ impl Workspace {
                         Err(why) => skipped.add(why),
                     }
                 }
-                let progress = format!("{what}: {searched} of {total} files searched...");
+                let progress = t!(
+                    "find-in-files.progress",
+                    what = what,
+                    searched = searched,
+                    total = total
+                );
                 this.update(cx, |this, cx| this.report(Some(progress), false, cx))
                     .ok();
             }
@@ -465,14 +500,14 @@ impl Workspace {
     }
 
     fn replace_in_files_asking(&mut self, ask: bool, window: &mut Window, cx: &mut Context<Self>) {
-        const WHAT: &str = "Replace in Files";
+        let what = t!("find.replace-in-files");
         if self.files_running(cx) {
             return;
         }
         let Some((searcher, _)) = self.searcher(cx) else {
             return;
         };
-        let Some(request) = self.files_request(WHAT, window, cx) else {
+        let Some(request) = self.files_request(&what, window, cx) else {
             return;
         };
         let template = self.find_bar.read(cx).replacement(cx);
@@ -501,7 +536,7 @@ impl Workspace {
             let Ok(cancel) = this.update(cx, |this, cx| this.start_files(cx)) else {
                 return;
             };
-            let Some(files) = list(&this, &request, &cancel, WHAT, cx).await else {
+            let Some(files) = list(&this, &request, &cancel, &what, cx).await else {
                 return;
             };
             let total = files.len();
@@ -572,7 +607,12 @@ impl Workspace {
                     .await;
                 done += results.len();
                 results.into_iter().for_each(&mut count);
-                let progress = format!("{WHAT}: {done} of {total} files done...");
+                let progress = t!(
+                    "find-in-files.progress-replacing",
+                    what = what,
+                    done = done,
+                    total = total
+                );
                 this.update(cx, |this, cx| this.report(Some(progress), false, cx))
                     .ok();
             }

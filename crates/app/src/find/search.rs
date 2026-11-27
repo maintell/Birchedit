@@ -128,12 +128,8 @@ impl Workspace {
                     Direction::Backward => found.start >= from,
                 };
                 let message = wrapped.then(|| match direction {
-                    Direction::Forward => {
-                        "Reached the end of the document; continued from the top.".to_owned()
-                    }
-                    Direction::Backward => {
-                        "Reached the start of the document; continued from the bottom.".to_owned()
-                    }
+                    Direction::Forward => t!("find.wrapped-to-top"),
+                    Direction::Backward => t!("find.wrapped-to-bottom"),
                 });
                 self.report(message, false, cx);
                 view.update(cx, |view, cx| view.select_range(found, cx));

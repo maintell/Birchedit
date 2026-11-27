@@ -265,7 +265,7 @@ impl FindBar {
     fn option_box(
         &self,
         id: &'static str,
-        label: &'static str,
+        label: String,
         checked: bool,
         set: fn(&mut FindOptions, bool),
         cx: &mut Context<Self>,
@@ -306,7 +306,7 @@ impl FindBar {
     fn folder_box(
         &self,
         id: &'static str,
-        label: &'static str,
+        label: String,
         checked: bool,
         set: fn(&mut FolderSearch, bool),
         cx: &Context<Self>,
@@ -337,7 +337,7 @@ impl Render for FindBar {
         let emit = |event: fn() -> FindBarEvent| {
             cx.listener(move |_, _, _, cx: &mut Context<Self>| cx.emit(event()))
         };
-        let button = |id: &'static str, label: &'static str, event: fn() -> FindBarEvent| {
+        let button = |id: &'static str, label: String, event: fn() -> FindBarEvent| {
             Button::new(id)
                 .small()
                 .label(label)
@@ -390,58 +390,62 @@ impl Render for FindBar {
 
         let actions: Vec<Button> = match tab {
             FindTab::Find => vec![
-                button("find-previous", "Find Previous", || {
+                button("find-previous", t!("find.previous"), || {
                     FindBarEvent::Find(Direction::Backward)
                 }),
-                button("find-next", "Find Next", || {
+                button("find-next", t!("find.next"), || {
                     FindBarEvent::Find(Direction::Forward)
                 }),
-                button("count", "Count", || FindBarEvent::Count),
-                button("find-all", "Find All in Current Document", || {
+                button("count", t!("find.count"), || FindBarEvent::Count),
+                button("find-all", t!("find.all-in-document"), || {
                     FindBarEvent::FindAll {
                         all_documents: false,
                     }
                 }),
-                button(
-                    "find-all-in-all",
-                    "Find All in All Opened Documents",
-                    || FindBarEvent::FindAll {
+                button("find-all-in-all", t!("find.all-in-all-documents"), || {
+                    FindBarEvent::FindAll {
                         all_documents: true,
-                    },
-                ),
+                    }
+                }),
             ],
-            FindTab::Replace => vec![button("find-next", "Find Next", || {
+            FindTab::Replace => vec![button("find-next", t!("find.next"), || {
                 FindBarEvent::Find(Direction::Forward)
             })],
             FindTab::FindInFiles | FindTab::FindInProjects if self.files_running.is_some() => {
-                vec![button("stop-files", "Stop", || FindBarEvent::StopFiles)]
+                vec![button("stop-files", t!("find.stop"), || {
+                    FindBarEvent::StopFiles
+                })]
             }
             FindTab::FindInFiles => vec![
-                button("find-in-files", "Find All", || FindBarEvent::FindInFiles),
-                button("replace-in-files", "Replace in Files", || {
+                button("find-in-files", t!("find.find-all"), || {
+                    FindBarEvent::FindInFiles
+                }),
+                button("replace-in-files", t!("find.replace-in-files"), || {
                     FindBarEvent::ReplaceInFiles
                 }),
             ],
-            FindTab::FindInProjects => vec![button("find-in-projects", "Find All", || {
-                FindBarEvent::FindInProjects
-            })],
+            FindTab::FindInProjects => {
+                vec![button("find-in-projects", t!("find.find-all"), || {
+                    FindBarEvent::FindInProjects
+                })]
+            }
             FindTab::Mark => vec![
-                button("mark-all", "Mark All", || FindBarEvent::MarkAll),
-                button("clear-marks", "Clear All Marks", || {
+                button("mark-all", t!("find.mark-all"), || FindBarEvent::MarkAll),
+                button("clear-marks", t!("find.clear-marks"), || {
                     FindBarEvent::ClearMarks
                 }),
-                button("copy-marked", "Copy Marked Text", || {
+                button("copy-marked", t!("find.copy-marked"), || {
                     FindBarEvent::CopyMarked
                 }),
             ],
         };
-        let label = |text: &'static str| div().w(px(84.)).flex_none().child(text);
+        let label = |text: String| div().w(px(84.)).flex_none().child(text);
         let find_row = div()
             .flex()
             .flex_row()
             .items_center()
             .gap_2()
-            .child(label("Find what:"))
+            .child(label(t!("find.find-what-label")))
             .child(
                 Input::new(&self.find_input)
                     .id("find-input")
@@ -453,7 +457,7 @@ impl Render for FindBar {
         let row = || div().flex().flex_row().items_center().gap_2();
         let replace_row = matches!(tab, FindTab::Replace | FindTab::FindInFiles).then(|| {
             row()
-                .child(label("Replace with:"))
+                .child(label(t!("find.replace-with-label")))
                 .child(
                     Input::new(&self.replace_input)
                         .id("replace-input")
@@ -462,22 +466,24 @@ impl Render for FindBar {
                         .when(monospaced, |input| input.font_family(crate::MONOSPACE)),
                 )
                 .when(tab == FindTab::Replace, |row| {
-                    row.child(button("replace", "Replace", || FindBarEvent::Replace))
-                        .child(button("replace-all", "Replace All", || {
-                            FindBarEvent::ReplaceAll
-                        }))
-                        .child(button(
-                            "replace-all-in-all",
-                            "Replace All in All Opened Documents",
-                            || FindBarEvent::ReplaceAllInAll,
-                        ))
+                    row.child(button("replace", t!("find.replace"), || {
+                        FindBarEvent::Replace
+                    }))
+                    .child(button("replace-all", t!("find.replace-all"), || {
+                        FindBarEvent::ReplaceAll
+                    }))
+                    .child(button(
+                        "replace-all-in-all",
+                        t!("find.replace-all-in-all"),
+                        || FindBarEvent::ReplaceAllInAll,
+                    ))
                 })
         });
         let files_rows = (tab == FindTab::FindInFiles).then(|| {
             let folder = self.folder;
             [
                 row()
-                    .child(label("Filters:"))
+                    .child(label(t!("find.filters-label")))
                     .child(
                         Input::new(&self.filters_input)
                             .id("filters-input")
@@ -486,19 +492,19 @@ impl Render for FindBar {
                     )
                     .into_any_element(),
                 row()
-                    .child(label("Directory:"))
+                    .child(label(t!("find.directory-label")))
                     .child(
                         Input::new(&self.directory_input)
                             .id("directory-input")
                             .w(px(360.))
                             .small(),
                     )
-                    .child(button("browse-folder", "...", || {
+                    .child(button("browse-folder", "...".to_owned(), || {
                         FindBarEvent::BrowseFolder
                     }))
                     .child(self.folder_box(
                         "follow-current",
-                        "Follow current doc.",
+                        t!("find.follow-current"),
                         folder.follow_current_document,
                         |f, v| f.follow_current_document = v,
                         cx,
@@ -510,7 +516,7 @@ impl Render for FindBar {
         let mut boxes = vec![
             self.option_box(
                 "whole-word",
-                "Match whole word only",
+                t!("find.whole-word"),
                 options.whole_word,
                 |o, v| o.whole_word = v,
                 cx,
@@ -518,7 +524,7 @@ impl Render for FindBar {
             .disabled(regex),
             self.option_box(
                 "match-case",
-                "Match case",
+                t!("find.match-case"),
                 options.match_case,
                 |o, v| o.match_case = v,
                 cx,
@@ -532,14 +538,14 @@ impl Render for FindBar {
         if tab == FindTab::FindInFiles {
             boxes.push(self.folder_box(
                 "subfolders",
-                "In all sub-folders",
+                t!("find.subfolders"),
                 self.folder.subfolders,
                 |f, v| f.subfolders = v,
                 cx,
             ));
             boxes.push(self.folder_box(
                 "hidden-folders",
-                "In hidden folders",
+                t!("find.hidden-folders"),
                 self.folder.hidden,
                 |f, v| f.hidden = v,
                 cx,
@@ -548,14 +554,14 @@ impl Render for FindBar {
         if matches!(tab, FindTab::Find | FindTab::Replace) {
             boxes.push(self.option_box(
                 "wrap-around",
-                "Wrap around",
+                t!("find.wrap-around"),
                 options.wrap_around,
                 |o, v| o.wrap_around = v,
                 cx,
             ));
             boxes.push(self.option_box(
                 "backward",
-                "Backward direction",
+                t!("find.backward"),
                 options.backward,
                 |o, v| o.backward = v,
                 cx,
@@ -564,7 +570,7 @@ impl Render for FindBar {
         if !matches!(tab, FindTab::FindInFiles | FindTab::FindInProjects) {
             boxes.push(self.option_box(
                 "in-selection",
-                "In selection",
+                t!("find.in-selection-check"),
                 options.in_selection,
                 |o, v| o.in_selection = v,
                 cx,
@@ -573,14 +579,14 @@ impl Render for FindBar {
         if tab == FindTab::Mark {
             boxes.push(self.option_box(
                 "bookmark-line",
-                "Bookmark line",
+                t!("find.bookmark-line"),
                 options.bookmark_line,
                 |o, v| o.bookmark_line = v,
                 cx,
             ));
             boxes.push(self.option_box(
                 "purge",
-                "Purge for each search",
+                t!("find.purge"),
                 options.purge,
                 |o, v| o.purge = v,
                 cx,
@@ -592,7 +598,7 @@ impl Render for FindBar {
             .flex_wrap()
             .items_center()
             .gap_3()
-            .child(label(""))
+            .child(label(String::new()))
             .children(boxes);
 
         let modes = [SearchMode::Normal, SearchMode::Extended, SearchMode::Regex];
@@ -601,7 +607,7 @@ impl Render for FindBar {
             .flex_row()
             .items_center()
             .gap_3()
-            .child(label("Search mode:"))
+            .child(label(t!("find.search-mode")))
             // Not stretched, so the regular expression option follows the modes.
             .child(
                 div().flex_none().child(
@@ -631,7 +637,7 @@ impl Render for FindBar {
             .child(
                 self.option_box(
                     "dot-newline",
-                    ". matches newline",
+                    t!("find.dot-newline"),
                     options.dot_matches_newline,
                     |o, v| o.dot_matches_newline = v,
                     cx,

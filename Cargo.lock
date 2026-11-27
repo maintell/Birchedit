@@ -592,7 +592,7 @@ checksum = "ac07cdecf99051d9a5238b80f35af32cdeba5b336e55d957b318b50137e18da5"
 
 [[package]]
 name = "birchpad"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "birchpad",
@@ -723,7 +723,7 @@ dependencies = [
 
 [[package]]
 name = "birchpad-fuzz"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "base64 0.23.1",
  "birchpad-cli",
@@ -757,7 +757,7 @@ dependencies = [
 
 [[package]]
 name = "birchpad-grammars"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "birchpad-tree-sitter-plantuml",
  "tree-sitter-asm",
@@ -812,7 +812,7 @@ dependencies = [
 
 [[package]]
 name = "birchpad-i18n"
-version = "0.9.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "sys-locale",
@@ -895,7 +895,7 @@ dependencies = [
 
 [[package]]
 name = "birchpad-release-tool"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "anyhow",
  "birchpad-update",
@@ -925,7 +925,7 @@ dependencies = [
 
 [[package]]
 name = "birchpad-syntax"
-version = "0.11.0"
+version = "0.11.1"
 dependencies = [
  "birchpad-core",
  "birchpad-i18n",

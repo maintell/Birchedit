@@ -6,6 +6,15 @@ version's release notes from its section here.
 
 ## [Unreleased]
 
+## [0.11.1] - 2026-11-27
+
+### Fixed
+
+- The find panel and Find in Files speak the interface's language: the panel's buttons, its
+  field labels and option boxes, the wrap-around messages and the folder and progress messages
+  of Find in Files were English text in the code, so a German, Russian or Chinese interface
+  showed them untranslated. They are keys now, in all four locales.
+
 ## [0.11.0] - 2026-11-11
 
 ### Changed

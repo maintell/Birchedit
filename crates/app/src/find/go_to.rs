@@ -15,7 +15,7 @@ use crate::workspace::Workspace;
 impl Workspace {
     /// Ctrl+G: Go To line or offset, as in Notepad++.
     pub(super) fn open_go_to(&mut self, window: &mut Window, cx: &mut Context<Self>) -> Result<()> {
-        let view = self.active_view(cx).context("no document is open")?;
+        let view = self.active_view(cx).context(t!("find.no-document"))?;
         let go_to = cx.new(|cx| GoTo::new(view, window, cx));
         let focus = go_to.read(cx).input.clone();
         window.open_dialog(cx, move |dialog, _, _| {
